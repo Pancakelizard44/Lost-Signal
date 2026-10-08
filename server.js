@@ -85,7 +85,12 @@ io.on("connection", (socket) => {
     let userName = socket.handshake.auth.userName
 
     if(players[playerID]){
-        io.emit("closeWindow")
+        debug("A player has reconnected")
+        players[playerID].socketID = socket.id
+        console.log("playerID:", playerID, " socketID:", socket.id)
+        if(myTimeout){
+            clearTimeout(myTimeout)
+        }
     } else if(offlinePlayers[playerID]){
         debug("A player that was offline has reconnected")
         console.log("playerID:", playerID, " socketID:", socket.id)
@@ -126,8 +131,16 @@ io.on("connection", (socket) => {
             lobbies[players[playerID].sessionID].disconnect(playerID)
         }
 
-        offlinePlayers[playerID] = players[playerID]
-        delete players[playerID]
+        myTimeout = setTimeout(() => {
+            if(players[playerID].group === "lobby"){
+            lobbies[players[playerID].sessionID].leave(playerID)
+            }
+            offlinePlayers[playerID] = players[playerID]
+            delete players[playerID]
+
+            debug("A player has been moved to offline for being disconnected for too long")
+            console.log("playerID:", playerID, " socketID:", socket.id)
+        }, 60000);
     })
 })
 
