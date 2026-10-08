@@ -119,7 +119,6 @@ io.on("connection", (socket) => {
     })  
 
     socket.on("disconnect", (socket) => {
-        if(players[playerID]){
         debug("A player has disconnected")
         console.log("playerID:", playerID)
 
@@ -129,7 +128,6 @@ io.on("connection", (socket) => {
 
         offlinePlayers[playerID] = players[playerID]
         delete players[playerID]
-        }
     })
 })
 
