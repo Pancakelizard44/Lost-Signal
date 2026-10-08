@@ -63,6 +63,9 @@ function serverConnection(){
             socket.on("playerAlert", (data) => {
                 myAlert(data)
             })
+            socket.on("closeWindow", () => {
+                window.close()
+            })
 
             localStorage.setItem("inSession", false)
             connected = true
