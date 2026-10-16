@@ -5,7 +5,7 @@ async function setup() {
     inSession = await localStorage.getItem("inSession")
 
     if(inSession === 'true'){
-        buttons.push(new myButton(width/2 - cellSize * 1.5,3*cellSize,3*cellSize,1*cellSize,"> Reconnect",[255,0,0],cellSize * 0.5,LEFT,serverConnection))
+        serverConnection()
     }else{
         buttons.push(new myButton(width/2 - cellSize * 1.5,3*cellSize,3*cellSize,1*cellSize,"> Start",[255,0,0],cellSize * 0.5,LEFT,serverConnection))
     }
@@ -56,8 +56,11 @@ function serverConnection(){
                 lobby = thisLobby
                 refreshLobby()
             })
-            socket.on("gameSessionUpdate", (data) => {
-
+            socket.on("gameSessionUpdate", (thisSession) => {
+                players = thisSession.players
+                session = thisSession
+                buttons = []
+                thisMap = thisSession.map
             })
 
             socket.on("playerAlert", (data) => {
@@ -65,6 +68,11 @@ function serverConnection(){
             })
             socket.on("closeWindow", () => {
                 window.close()
+            })
+            socket.on("kicked", () => {
+                myAlert("You were kicked from the lobby")
+                localStorage.setItem("inSession", false)
+                alert("test")
             })
 
             localStorage.setItem("inSession", false)
@@ -82,11 +90,12 @@ function myAlert(m){
 }
 
 document.addEventListener("keydown", (a) => {
-
     if(players[playerID]){
-        
+        if(a.keyCode >= 32){
+            socket.emit("keyDown", a.keyCode)
+        }
     } else {
-        if(a.keyCode <= 90 && a.keyCode >= 32){
+        if(a.keyCode >= 32){
             if(userName){
                 userName = userName + a.key
             } else {
@@ -98,8 +107,10 @@ document.addEventListener("keydown", (a) => {
         
     }
 })
-document.addEventListener("keyup", (e) => {
-    
+document.addEventListener("keyup", (a) => {
+    if(players[playerID] && a.keyCode >= 32){
+        socket.emit("keyUp", a.keyCode)
+    }
 })
 function mouseClicked() {
     for(let i = 0; i <= buttons.length; i++){
@@ -113,6 +124,7 @@ function mouseClicked() {
 let players = {}
 let lobbies = {}
 let buttons = []
+let thisMap
 let number = 0
 let cellSize
 let mapSize = 6
@@ -262,6 +274,7 @@ function refreshLobbies(){
 
         j++
     }
+    console.log("pre lobby")
 }
 
 
@@ -294,19 +307,79 @@ function refreshLobby(){
             buttons.push(new myButton(i * width/4 + width/20, height/2 - width/32, width/4 - width/10, cellSize/2,"> Kick",[255,0,0],cellSize/3,CENTER,kick, lobby.priority[i]))
         }
     }
+    console.log("lobby")
 }
 function startGameSession(){
-
+    socket.emit("startGameSession")
 }
 function leave(){
     socket.emit("leaveLobby")
     localStorage.setItem("inSession", false)
 }
 function kick(id){
-
+    socket.emit("kickPlayer", id)
 }
 
 
 function drawGameSession(){
-    
+    background(50)
+
+    if(players[playerID]){
+        thisPlayer = players[playerID]
+        camX = thisPlayer.pos[0] * cellSize
+        camY = thisPlayer.pos[1] * cellSize
+
+        push()
+        translate(width/2 - camX, height/2 - camY)
+        if(thisMap){
+            drawWorld()
+        }
+        pop()
+
+        fill("blue")
+        circle(width/2,height/2,cellSize)
+    }
+}
+function drawWorld() {
+    stroke(cellSize * 0.01)
+    Ymax = Math.round(thisPlayer.pos[1] + mapSize * 1.5)
+    if(Ymax > thisMap.length) {Ymax = thisMap.length}
+
+    for (let j = Math.round(thisPlayer.pos[1] - mapSize * 1.5); j < Ymax; j++) {
+        
+        if(j < 0){j = 0}
+        Xmax = Math.round(thisPlayer.pos[0] + mapSize * 1.5)
+        if(Xmax > thisMap[j].length) {Xmax = thisMap[j].length}
+
+        for(let i = Math.round(thisPlayer.pos[0] - mapSize * 1.5); i < Xmax; i++){
+            if(i < 0){i = 0}
+
+            switch (thisMap[j][i]) {
+            case 0:
+                fill(200);
+                img = 0
+                break;
+            case 1:
+                fill(50);
+                img = 1
+                break;
+            case 2:
+                fill("gray");
+                img = 2
+                break;
+            default:
+                console.log("ERROR the map is not loading properly")
+                break;
+            }
+            square(i*cellSize,j*cellSize,cellSize)
+        }
+    }   
+    drawPlayers()
+}
+function drawPlayers() {
+    fill("red")
+    for(let id in players) {
+        let i = players[id]
+        circle(i.pos[0] * cellSize ,i.pos[1] * cellSize,cellSize)
+    }
 }
