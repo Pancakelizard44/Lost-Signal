@@ -238,6 +238,11 @@ function draw(){
         fill("red")
         text(myMessage, width * 0.1, height/2, width * 0.8)
     }
+
+    //keyboard inputs:
+    if(keyIsDown("w")){
+        
+    }
 }
 
 
