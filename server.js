@@ -15,7 +15,32 @@ class player {
         this.group = group
         this.sessionID = 0
         this.userName = name
+        this.pos = [4.5,4.5]
+        this.vect = [0,0]
+        this.v = 1/20
     }
+
+    checkTarget() {
+        let m = sessions[this.sessionID].map
+
+        if(this.vect[0] > 0 && (isWall(this.pos[0] + 0.51, this.pos[1] + 0.5, m) || isWall(this.pos[0] + 0.51, this.pos[1] - 0.5, m))) {
+            this.vect[0] = 0
+        } else if(this.vect[0] < 0 && (isWall(this.pos[0] - 0.51, this.pos[1] + 0.5, m) || isWall(this.pos[0] - 0.51, this.pos[1] - 0.5, m))) {
+            this.vect[0] = 0
+        }
+
+        if(this.vect[1] > 0 && (isWall(this.pos[1] + 0.51, this.pos[0] + 0.5, m) || isWall(this.pos[1] + 0.51, this.pos[0] - 0.5, m))) {
+            this.vect[1] = 0
+        } else if(this.vect[1] < 0 && (isWall(this.pos[1] - 0.51, this.pos[0] + 0.5, m) || isWall(this.pos[1] - 0.51, this.pos[0] - 0.5, m))) {
+            this.vect[1] = 0
+        }         
+    }
+}
+function isWall(x,y,inputMap){
+    x = Math.floor(x)
+    y = Math.floor(y)
+    if(inputMap[y][x] === 1 || inputMap[y][x] === 2) {return true}
+    return false
 }
 
 class lobby {
@@ -74,12 +99,6 @@ class gameSession {
         }
         this.loop = setInterval(gameSessionUpdate,16,this.id)
         this.map = maps[0]
-        for(let id in this.players){
-            let i = this.players[id]
-            i.pos = [0,0]
-            i.vector = [0,0]
-            i.v = 1/20
-        }
     }
 }
 
@@ -153,17 +172,17 @@ io.on("connection", (socket) => {
         thisPlayer = players[playerID]
         if(players[playerID].group = "gameSession"){
             switch(a) {
-                case 87:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[1] = -1
+                case 87 || 38:
+                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = -1
                     break;
-                case 65:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[0] = -1
+                case 65 || 37:
+                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = -1
                     break;
-                case 83:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[1] = 1
+                case 83 || 40:
+                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = 1
                     break;
-                case 68:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[0] = 1
+                case 68 || 39:
+                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = 1
                     break;
             }
         }
@@ -172,20 +191,27 @@ io.on("connection", (socket) => {
     socket.on("keyUp", (a) => {
         thisPlayer = players[playerID]
         if(players[playerID].group = "gameSession"){
+            let xv = sessions[thisPlayer.sessionID].players[playerID].vect[0]
+            let yv = sessions[thisPlayer.sessionID].players[playerID].vect[1]
             switch(a) {
-                case 87:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[1] = 0
+                case 87 || 38:
+                    if(yv < 0)
+                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = 0
                     break;
-                case 65:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[0] = 0
+                case 65 || 37:
+                    if(xv < 0)
+                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = 0
                     break;
-                case 83:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[1] = 0
+                case 83 || 40:
+                    if(yv > 0)
+                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = 0
                     break;
-                case 68:
-                    sessions[thisPlayer.sessionID].players[playerID].vector[0] = 0
+                case 68 || 39:
+                    if(xv > 0)
+                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = 0
                     break;
             }
+            
         }
     })
 
@@ -221,9 +247,9 @@ function lobbyUpdate(i) {
 function gameSessionUpdate(i) {
     for(let id in sessions[i].players){
         let j = sessions[i].players[id]
-        j.pos[0] += j.vector[0] * j.v
-        j.pos[1] += j.vector[1] * j.v
-        if(j.vector ==! [0,0]){console.log(j.vector)}
+        j.checkTarget()
+        j.pos[0] += j.vect[0] * j.v
+        j.pos[1] += j.vect[1] * j.v
 
         io.to(j.socketID).emit("gameSessionUpdate", sessions[i])
     }
