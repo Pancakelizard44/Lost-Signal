@@ -23,17 +23,34 @@ class player {
     checkTarget() {
         let m = sessions[this.sessionID].map
 
-        if(this.vect[0] > 0 && (isWall(this.pos[0] + 0.51, this.pos[1] + 0.5, m) || isWall(this.pos[0] + 0.51, this.pos[1] - 0.5, m))) {
+        if(this.vect[0] > 0 && (isWall(this.pos[0] + 0.55, this.pos[1] + 0.5, m) || isWall(this.pos[0] + 0.55, this.pos[1] - 0.5, m))) {
             this.vect[0] = 0
-        } else if(this.vect[0] < 0 && (isWall(this.pos[0] - 0.51, this.pos[1] + 0.5, m) || isWall(this.pos[0] - 0.51, this.pos[1] - 0.5, m))) {
+        } else if(this.vect[0] < 0 && (isWall(this.pos[0] - 0.55, this.pos[1] + 0.5, m) || isWall(this.pos[0] - 0.55, this.pos[1] - 0.5, m))) {
             this.vect[0] = 0
         }
 
-        if(this.vect[1] > 0 && (isWall(this.pos[1] + 0.51, this.pos[0] + 0.5, m) || isWall(this.pos[1] + 0.51, this.pos[0] - 0.5, m))) {
+        if(this.vect[1] > 0 && (isWall(this.pos[1] + 0.55, this.pos[0] + 0.5, m) || isWall(this.pos[1] + 0.55, this.pos[0] - 0.5, m))) {
             this.vect[1] = 0
-        } else if(this.vect[1] < 0 && (isWall(this.pos[1] - 0.51, this.pos[0] + 0.5, m) || isWall(this.pos[1] - 0.51, this.pos[0] - 0.5, m))) {
+        } else if(this.vect[1] < 0 && (isWall(this.pos[1] - 0.55, this.pos[0] + 0.5, m) || isWall(this.pos[1] - 0.55, this.pos[0] - 0.5, m))) {
             this.vect[1] = 0
         }         
+    }
+    triangle() {
+        switch(this.vect) {
+            case [1,1]:
+                this.vect = [Math.pow(0.5,0.5),Math.pow(0.5,0.5)]
+                console.log("test 1")
+                break;
+            case [1,-1]:
+                this.vect = [Math.pow(0.5,0.5),-Math.pow(0.5,0.5)]
+                break;
+            case [-1,1]:
+                this.vect = [-Math.pow(0.5,0.5),Math.pow(0.5,0.5)]
+                break;
+            case [-1,-1]:
+                this.vect = [-Math.pow(0.5,0.5),-Math.pow(0.5,0.5)]
+                break;
+        }
     }
 }
 function isWall(x,y,inputMap){
@@ -245,9 +262,11 @@ function lobbyUpdate(i) {
 }
 
 function gameSessionUpdate(i) {
+    if(sessions[i].players)
     for(let id in sessions[i].players){
         let j = sessions[i].players[id]
         j.checkTarget()
+        j.triangle()
         j.pos[0] += j.vect[0] * j.v
         j.pos[1] += j.vect[1] * j.v
 
