@@ -241,7 +241,7 @@ function draw(){
 
     //keyboard inputs:
     if(keyIsDown("w")){
-        
+
     }
 }
 
@@ -382,9 +382,13 @@ function drawWorld() {
     drawPlayers()
 }
 function drawPlayers() {
+    textAlign(CENTER,CENTER)
+    strokeWeight(cellSize * 0.01)
+    
     fill("red")
     for(let id in players) {
         let i = players[id]
         circle(i.pos[0] * cellSize ,i.pos[1] * cellSize,cellSize)
+        text(i.userName, i.pos[0] * cellSize,(i.pos[1] - 0.75) * cellSize )
     }
 }
