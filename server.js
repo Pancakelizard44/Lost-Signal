@@ -238,8 +238,8 @@ io.on("connection", (socket) => {
         debug("A player has disconnected")
         console.log("playerID:", playerID)
 
-        myTimeout = false
         myTimeout = setTimeout(() => {
+            if(players[playersID])
             if(players[playerID].group === "lobby"){
             lobbies[players[playerID].sessionID].disconnect(playerID)
             }
