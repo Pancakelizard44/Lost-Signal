@@ -15,7 +15,7 @@ class player {
         this.group = group
         this.sessionID = 0
         this.userName = name
-        this.pos = [4.5,4.5]
+        this.pos = [4.5,4]
         this.vect = [0,0]
         this.v = 1/20
     }
