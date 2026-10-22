@@ -15,9 +15,33 @@ class player {
         this.group = group
         this.sessionID = 0
         this.userName = name
-        this.pos = [4.5,4]
+        this.pos = [4.5,4.5]
         this.vect = [0,0]
         this.v = 1/20
+        this.move = [0,0]
+    }
+
+    checkTarget() {
+        let m = sessions[this.sessionID].map
+        this.move = this.vect
+
+        if(this.vect[0] > 0 && (isWall(this.pos[0] + 0.55, this.pos[1] + 0.5, m) || isWall(this.pos[0] + 0.55, this.pos[1] - 0.5, m))) {
+            this.move[0] = 0
+        } else if(this.vect[0] < 0 && (isWall(this.pos[0] - 0.55, this.pos[1] + 0.5, m) || isWall(this.pos[0] - 0.55, this.pos[1] - 0.5, m))) {
+            this.move[0] = 0
+        }
+
+        if(this.vect[1] > 0 && (isWall(this.pos[1] + 0.55, this.pos[0] + 0.5, m) || isWall(this.pos[1] + 0.55, this.pos[0] - 0.5, m))) {
+            this.move[1] = 0
+        } else if(this.vect[1] < 0 && (isWall(this.pos[1] - 0.55, this.pos[0] + 0.5, m) || isWall(this.pos[1] - 0.55, this.pos[0] - 0.5, m))) {
+            this.move[1] = 0
+        }        
+        
+        let moveString = this.move[0] * this.move[1]
+
+        if(moveString === 1 || moveString === -1) {
+            this.move = [Math.pow(0.5,0.5) * this.move[0], Math.pow(0.5,0.5) * this.move[1]]
+        }
     }
 }
 function isWall(x,y,inputMap){
@@ -80,43 +104,10 @@ class gameSession {
         delete lobbies[this.id]
         for(let i = 0; i < lobby.priority.length; i++){
             players[lobby.priority[i]].group = "gameSession"
-            players[lobby.priority[i]].pos = spawns[0]
         }
         this.loop = setInterval(gameSessionUpdate,16,this.id)
         this.map = maps[0]
     }
-}
-
-function checkTarget(obj) {
-        let move = obj.vect
-        let m = sessions[obj.sessionID].map
-
-        if(obj.vect[0] > 0 && (isWall(obj.pos[0] + 0.55, obj.pos[1] + 0.5, m) || isWall(obj.pos[0] + 0.55, obj.pos[1] - 0.5, m))) {
-            move[0] = 0
-        } else if(obj.vect[0] < 0 && (isWall(obj.pos[0] - 0.55, obj.pos[1] + 0.5, m) || isWall(obj.pos[0] - 0.55, obj.pos[1] - 0.5, m))) {
-            move[0] = 0
-        }
-
-        if(obj.vect[1] > 0 && (isWall(obj.pos[1] + 0.55, obj.pos[0] + 0.5, m) || isWall(obj.pos[1] + 0.55, obj.pos[0] - 0.5, m))) {
-            move[1] = 0
-        } else if(obj.vect[1] < 0 && (isWall(obj.pos[1] - 0.55, obj.pos[0] + 0.5, m) || isWall(obj.pos[1] - 0.55, obj.pos[0] - 0.5, m))) {
-            move[1] = 0
-        }     
-        
-        return move
-}    
-    
-function triangle(move) {
-        if(move[0] === 1 && move[1] === 1){
-            move = [Math.pow(0.5,0.5),Math.pow(0.5,0.5)]
-        } else if (move[0] === 1 && move[1] === -1){
-            move = [Math.pow(0.5,0.5),-Math.pow(0.5,0.5)]
-        } else if (move[0] === -1 && move[1] === 1){
-            move = [-Math.pow(0.5,0.5),Math.pow(0.5,0.5)]
-        } else if (move[0] === -1 && move[1] === -1){
-            move = [-Math.pow(0.5,0.5),-Math.pow(0.5,0.5)]
-        }
-        return move
 }
 
 let players = {}
@@ -144,9 +135,8 @@ io.on("connection", (socket) => {
         players[playerID] = offlinePlayers[playerID]
         delete offlinePlayers[playerID]
         players[playerID].socketID = socket.id
-        players[playerID].group = "preLobby"
         
-        if(!(lobbies[players[playerID].sessionID] || sessions[players[playerID].sessionID])){
+        if(!(lobbies[offlinePlayers[playerID].socketID] || sessions[offlinePlayers[playerID].socketID])){
             players[playerID].sessionID = 0
         }      
     } else {
@@ -154,7 +144,6 @@ io.on("connection", (socket) => {
         console.log("playerID:", playerID, " socketID:", socket.id)
         players[playerID] = new player(playerID,socket.id,"preLobby",userName)
     }
-
     if(players[playerID].group === "lobby"){
         lobbyUpdate(lobbies[players[playerID].sessionID])
     } else {
@@ -237,9 +226,8 @@ io.on("connection", (socket) => {
     socket.on("disconnect", (socket) => {
         debug("A player has disconnected")
         console.log("playerID:", playerID)
-
         myTimeout = setTimeout(() => {
-            if(players[playersID])
+            if(players[playerID])
             if(players[playerID].group === "lobby"){
             lobbies[players[playerID].sessionID].disconnect(playerID)
             }
@@ -268,10 +256,9 @@ function gameSessionUpdate(i) {
     if(sessions[i].players)
     for(let id in sessions[i].players){
         let j = sessions[i].players[id]
-        let delta = checkTarget(j)
-        delta = triangle(delta)
-        j.pos[0] += delta[0] * j.v
-        j.pos[1] += delta[1] * j.v
+        j.checkTarget()
+        j.pos[0] += j.move[0] * j.v
+        j.pos[1] += j.move[1] * j.v
 
         io.to(j.socketID).emit("gameSessionUpdate", sessions[i])
     }
@@ -411,16 +398,6 @@ let mapPresets = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ],[
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [2, 2, 2, 2, 2, 2, 2, 2, 2],
-        [2, 2, 2, 2, 2, 2, 2, 2, 2],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
     ]
 ]
 
@@ -451,20 +428,13 @@ function createMap(arr) {
     return thisMap
 }
 
-mapGrids = []
-mapGrids[0] = [
+mapGrid1 = [
     [5,1,1,1,8],
     [4,0,0,0,2],
     [4,0,0,0,2],
     [4,0,0,0,2],
     [6,3,3,3,7],
 ]
-mapGrids[1] = [
-
-]
 
 maps = []
-maps[0] = createMap(mapGrids[0])
-
-spawns = []
-spawns[0] = [4.5,4.5]
+maps[0] = createMap(mapGrid1)
