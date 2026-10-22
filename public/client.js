@@ -1,125 +1,3 @@
-async function setup() {
-    createCanvas(windowWidth,windowHeight)
-    cellSize = floor(min(width / (mapSize + 2), height / (mapSize + 2)))
-
-    inSession = await localStorage.getItem("inSession")
-
-    if(inSession === 'true'){
-        serverConnection()
-    }else{
-        buttons.push(new myButton(width/2 - cellSize * 1.5,3*cellSize,3*cellSize,1*cellSize,"> Start",[255,0,0],cellSize * 0.5,LEFT,serverConnection))
-    }
-
-    textWrap(WORD)
-}
-
-let playerID = localStorage.getItem("playerID")
-let userName = localStorage.getItem("userName")
-
-if(!playerID){
-    playerID = crypto.randomUUID()
-    localStorage.setItem("playerID", playerID)
-}
-if(!userName){userName = undefined}
-
-//Functions which will be used in all game states 
-function serverConnection(){
-    if(userName){
-        if(userName.length >= 15){ myAlert("Usernames have a maximum of 15 characters") } else {
-            localStorage.setItem("userName", userName)
-            socket = io({
-                auth:{playerID: playerID,userName: userName}
-            })
-            socket.on("close", () => {
-                console.log("socket has closed")
-            })
-
-
-            buttons = []
-
-            //data from server
-            socket.on("preLobbyUpdate", (playerData,lobbyData) => {
-                if(players[playerID]){
-                    if(playerData[playerID].group === "preLobby"){
-                        players = playerData
-                        lobbies = lobbyData
-                        refreshLobbies()
-                    }
-                } else { 
-                    players = playerData
-                    lobbies = lobbyData
-                    refreshLobbies()
-                }
-            }) 
-            socket.on("lobbyUpdate", (thisLobby) => {
-                players = thisLobby.players
-                lobby = thisLobby
-                refreshLobby()
-            })
-            socket.on("gameSessionUpdate", (thisSession) => {
-                players = thisSession.players
-                session = thisSession
-                buttons = []
-                thisMap = thisSession.map
-            })
-
-            socket.on("playerAlert", (data) => {
-                myAlert(data)
-            })
-            socket.on("closeWindow", () => {
-                window.close()
-            })
-            socket.on("kicked", () => {
-                myAlert("You were kicked from the lobby")
-                localStorage.setItem("inSession", false)
-                alert("test")
-            })
-
-            localStorage.setItem("inSession", false)
-            connected = true
-        }   
-    } else {
-        myAlert("Enter a username")
-    }
-}
-function myAlert(m){
-    myMessage = m
-    setTimeout(()=>{
-        myMessage = false
-    },800)
-}
-
-document.addEventListener("keydown", (a) => {
-    if(players[playerID]){
-        if(a.keyCode >= 32){
-            socket.emit("keyDown", a.keyCode)
-        }
-    } else {
-        if(a.keyCode >= 32){
-            if(userName){
-                userName = userName + a.key
-            } else {
-                userName = a.key
-            }
-        } else if (a.key === "Backspace" && userName){
-            userName = userName.slice(0,-1)
-        }
-        
-    }
-})
-document.addEventListener("keyup", (a) => {
-    if(players[playerID] && a.keyCode >= 32){
-        socket.emit("keyUp", a.keyCode)
-    }
-})
-function mouseClicked() {
-    for(let i = 0; i <= buttons.length; i++){
-        if(buttons[i]){
-        buttons[i].check(mouseX,mouseY)
-        }
-    }
-}
-
 //variables defined on set up
 let players = {}
 let lobbies = {}
@@ -132,6 +10,14 @@ let connected = false
 let myMessage = false
 let correction = 0
 
+let playerID = localStorage.getItem("playerID")
+let userName = localStorage.getItem("userName")
+
+if(!playerID){
+    playerID = crypto.randomUUID()
+    localStorage.setItem("playerID", playerID)
+}
+if(!userName){userName = undefined}
 
 //objects
 class myButton {
@@ -194,6 +80,120 @@ class myButton {
     }
 }
 
+async function setup() {
+    createCanvas(windowWidth,windowHeight)
+    cellSize = floor(min(width / (mapSize + 2), height / (mapSize + 2)))
+
+    let inSession = localStorage.getItem("inSession")
+
+    if(inSession === 'true'){
+        serverConnection()
+    } else {
+        buttons.push(new myButton(width/2 - cellSize * 1.5,3*cellSize,3*cellSize,1*cellSize,"> Start",[255,0,0],cellSize * 0.5,LEFT,serverConnection))
+    }
+
+    textWrap(WORD)
+}
+
+//Functions which will be used in all game states 
+function serverConnection(){
+    if(userName){
+        if(userName.length >= 15){ myAlert("Usernames have a maximum of 15 characters") } else {
+            localStorage.setItem("userName", userName)
+            socket = io({
+                auth:{playerID: playerID,userName: userName}
+            })
+            socket.on("close", () => {
+                console.log("socket has closed")
+            })
+
+
+            buttons = []
+
+            //data from server
+            socket.on("preLobbyUpdate", (playerData,lobbyData) => {
+                if(players[playerID]){
+                    if(playerData[playerID].group === "preLobby"){
+                        players = playerData
+                        lobbies = lobbyData
+                        refreshLobbies()
+                    }
+                } else { 
+                    players = playerData
+                    lobbies = lobbyData
+                    refreshLobbies()
+                }
+            }) 
+            socket.on("lobbyUpdate", (thisLobby) => {
+                players = thisLobby.players
+                lobby = thisLobby
+                refreshLobby()
+            })
+            socket.on("gameSessionUpdate", (thisSession) => {
+                players = thisSession.players
+                session = thisSession
+                buttons = []
+                thisMap = thisSession.map
+                refreshSession()
+            })
+
+            socket.on("playerAlert", (data) => {
+                myAlert(data)
+            })
+            socket.on("closeWindow", () => {
+                window.close()
+            })
+            socket.on("kicked", () => {
+                myAlert("You were kicked from the lobby")
+                localStorage.setItem("inSession", false)
+                alert("test")
+            })
+
+            localStorage.setItem("inSession", false)
+            connected = true
+        }   
+    } else {
+        myAlert("Enter a username")
+    }
+}
+function myAlert(m){
+    myMessage = m
+    setTimeout(()=>{
+        myMessage = false
+    },800)
+}
+
+document.addEventListener("keydown", (a) => {
+    if(players[playerID]){
+        if(a.keyCode >= 32){
+            socket.emit("keyDown", a.keyCode)
+        } 
+    } else {
+        if(a.keyCode >= 32){
+            if(userName){
+                userName = userName + a.key
+            } else {
+                userName = a.key
+            }
+        } else if (a.key === "Backspace" && userName){
+            userName = userName.slice(0,-1)
+        }
+        
+    }
+})
+document.addEventListener("keyup", (a) => {
+    if(players[playerID] && a.keyCode >= 32){
+        socket.emit("keyUp", a.keyCode)
+    }
+})
+function mouseClicked() {
+    for(let i = 0; i <= buttons.length; i++){
+        if(buttons[i]){
+        buttons[i].check(mouseX,mouseY)
+        }
+    }
+}
+
 //drawing
 function draw(){
     if(players[playerID]){
@@ -237,11 +237,6 @@ function draw(){
         textAlign(CENTER,CENTER)
         fill("red")
         text(myMessage, width * 0.1, height/2, width * 0.8)
-    }
-
-    //keyboard inputs:
-    if(keyIsDown("w")){
-
     }
 }
 
@@ -346,7 +341,7 @@ function drawGameSession(){
     }
 }
 function drawWorld() {
-    stroke(cellSize * 0.01)
+    strokeWeight(0)
     Ymax = Math.round(thisPlayer.pos[1] + mapSize * 1.5)
     if(Ymax > thisMap.length) {Ymax = thisMap.length}
 
@@ -376,13 +371,14 @@ function drawWorld() {
                 console.log("ERROR the map is not loading properly")
                 break;
             }
-            square(i*cellSize,j*cellSize,cellSize)
+            square(i*cellSize,j*cellSize,cellSize * 1.01)
         }
     }   
     drawPlayers()
 }
 function drawPlayers() {
     textAlign(CENTER,CENTER)
+    textSize(cellSize * 0.2)
     strokeWeight(cellSize * 0.01)
     
     fill("red")
@@ -391,4 +387,8 @@ function drawPlayers() {
         circle(i.pos[0] * cellSize ,i.pos[1] * cellSize,cellSize)
         text(i.userName, i.pos[0] * cellSize,(i.pos[1] - 0.75) * cellSize )
     }
+}
+function refreshSession() {
+    buttons = []
+    localStorage.setItem("inSession", true)
 }
