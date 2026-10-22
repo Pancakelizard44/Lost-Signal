@@ -268,7 +268,7 @@ function gameSessionUpdate(i) {
     if(sessions[i].players)
     for(let id in sessions[i].players){
         let j = sessions[i].players[id]
-        delta = checkTarget(j)
+        let delta = checkTarget(j)
         delta = triangle(delta)
         j.pos[0] += delta[0] * j.v
         j.pos[1] += delta[1] * j.v
