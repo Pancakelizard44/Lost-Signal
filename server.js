@@ -123,6 +123,7 @@ let players = {}
 let offlinePlayers = {}
 let lobbies = {}
 let sessions = {}
+let myTimeout = false
 
 //server communication with client
 io.on("connection", (socket) => {
@@ -236,6 +237,8 @@ io.on("connection", (socket) => {
     socket.on("disconnect", (socket) => {
         debug("A player has disconnected")
         console.log("playerID:", playerID)
+
+        myTimeout = false
         myTimeout = setTimeout(() => {
             if(players[playerID].group === "lobby"){
             lobbies[players[playerID].sessionID].disconnect(playerID)
