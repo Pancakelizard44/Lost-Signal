@@ -140,13 +140,13 @@ function serverConnection(){
             socket.on("playerAlert", (data) => {
                 myAlert(data)
             })
-            socket.on("closeWindow", () => {
-                window.close()
-            })
             socket.on("kicked", () => {
                 myAlert("You were kicked from the lobby")
                 localStorage.setItem("inSession", false)
-                alert("test")
+            })
+            socket.on("closeTab", () => {
+                alert("You can no longer use this window")
+                window.close()
             })
 
             localStorage.setItem("inSession", false)
