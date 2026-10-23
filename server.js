@@ -236,7 +236,7 @@ io.on("connection", (socket) => {
     socket.on("disconnect", (socket) => {
         debug("A player has disconnected")
         console.log("playerID:", playerID)
-        myTimeout = setTimeout(() => {
+        /* myTimeout = setTimeout(() => {
             if(players[playerID])
             if(players[playerID].group === "lobby"){
             lobbies[players[playerID].sessionID].disconnect(playerID)
@@ -248,7 +248,7 @@ io.on("connection", (socket) => {
             delete players[playerID]
 
             console.log("playerID:", playerID, " socketID:", socket.id)
-        }, 10000)
+        }, 10000) */
     })
 })
 
