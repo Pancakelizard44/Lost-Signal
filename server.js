@@ -137,6 +137,7 @@ io.on("connection", (socket) => {
 
     if(players[playerID]){
         debug("A player has reconnected")
+        socket.to(players[playerID].socketID).emit("closeTab")
         players[playerID].socketID = socket.id
         console.log("playerID:", playerID, " socketID:", socket.id)
 
@@ -148,6 +149,7 @@ io.on("connection", (socket) => {
         console.log("playerID:", playerID, " socketID:", socket.id)
         players[playerID] = offlinePlayers[playerID]
         delete offlinePlayers[playerID]
+        socket.to(players[playerID].socketID).emit("closeTab")
         players[playerID].socketID = socket.id
         
         if(!(lobbies[offlinePlayers[playerID].socketID] || sessions[offlinePlayers[playerID].socketID])){
@@ -181,6 +183,7 @@ io.on("connection", (socket) => {
         if(lobbies[players[playerID].sessionID].priority[0] === playerID){
             lobbies[players[data].sessionID].leave(data)
         }
+        socket.to(players[data].socketID).emit("kicked")
     })
 
 
@@ -277,7 +280,6 @@ function gameSessionUpdate(i) {
         j.pos[1] += j.move[1] * j.v
 
         io.to(j.socketID).emit("gameSessionUpdate", sessions[i])
-        console.log(j.pos)
     }
 }
 
