@@ -25,15 +25,25 @@ class player {
         let m = sessions[this.sessionID].map
         this.move = this.vect
 
-        if(this.vect[0] > 0 && (isWall(this.pos[0] + 0.55, this.pos[1] + 0.5, m) || isWall(this.pos[0] + 0.55, this.pos[1] - 0.5, m))) {
+        if(this.vect[0] > 0 
+        && (isWall(this.pos[0] + this.hitBox * 0.5 + 0.05, this.pos[1] + this.hitBox * 0.5, m) 
+        || isWall(this.pos[0] + this.hitBox * 0.5 + 0.05, this.pos[1] - this.hitBox * 0.5, m))) {
             this.move[0] = 0
-        } else if(this.vect[0] < 0 && (isWall(this.pos[0] - 0.55, this.pos[1] + 0.5, m) || isWall(this.pos[0] - 0.55, this.pos[1] - 0.5, m))) {
+
+        } else if(this.vect[0] < 0 
+        && (isWall(this.pos[0] - this.hitBox * 0.5 - 0.05, this.pos[1] + this.hitBox * 0.5, m) 
+        || isWall(this.pos[0] - this.hitBox * 0.5 - 0.05, this.pos[1] - this.hitBox * 0.5, m))) {
             this.move[0] = 0
         }
 
-        if(this.vect[1] > 0 && (isWall(this.pos[1] + 0.55, this.pos[0] + 0.5, m) || isWall(this.pos[1] + 0.55, this.pos[0] - 0.5, m))) {
+        if(this.vect[1] > 0 
+        && (isWall(this.pos[0] + this.hitBox * 0.5, this.pos[1] + this.hitBox * 0.5 + 0.05, m) 
+        || isWall(this.pos[0] - this.hitBox * 0.5, this.pos[1] + this.hitBox * 0.5 + 0.05, m))) {
             this.move[1] = 0
-        } else if(this.vect[1] < 0 && (isWall(this.pos[1] - 0.55, this.pos[0] + 0.5, m) || isWall(this.pos[1] - 0.55, this.pos[0] - 0.5, m))) {
+
+        } else if(this.vect[1] < 0 
+        && (isWall(this.pos[0] + this.hitBox * 0.5, this.pos[1] - this.hitBox * 0.5 - 0.05, m) 
+        || isWall(this.pos[0] - this.hitBox * 0.5, this.pos[1] - this.hitBox * 0.5 - 0.05, m))) {
             this.move[1] = 0
         }        
         
