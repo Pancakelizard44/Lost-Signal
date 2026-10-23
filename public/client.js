@@ -9,6 +9,7 @@ let mapSize = 6
 let connected = false
 let myMessage = false
 let correction = 0
+let connectionCheck = false
 
 let playerID = localStorage.getItem("playerID")
 let userName = localStorage.getItem("userName")
@@ -95,6 +96,7 @@ async function setup() {
     textWrap(WORD)
 }
 
+
 //Functions which will be used in all game states 
 function serverConnection(){
     if(userName){
@@ -103,10 +105,19 @@ function serverConnection(){
             socket = io({
                 auth:{playerID: playerID,userName: userName}
             })
-            socket.on("close", () => {
-                console.log("socket has closed")
-            })
 
+            connectionCheck = setTimeout(() => {
+                window.location.reload()
+            },2000)
+            
+            socket.on("heartBeat", () => {
+                if(connectionCheck) {
+                    clearTimeout(connectionCheck)
+                }   
+                connectionCheck = setTimeout(() => {
+                window.location.reload()
+                },2000)
+            })
 
             buttons = []
 
