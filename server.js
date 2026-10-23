@@ -19,6 +19,7 @@ class player {
         this.vect = [0,0]
         this.v = 1/20
         this.move = [0,0]
+        this.hitBox = 1 //this is ths length of the square which the player collition acts
     }
 
     checkTarget() {
@@ -114,9 +115,12 @@ class gameSession {
         delete lobbies[this.id]
         for(let i = 0; i < lobby.priority.length; i++){
             players[lobby.priority[i]].group = "gameSession"
+            players[lobby.priority[i]].pos[0] = spawns[1][0]
+            players[lobby.priority[i]].pos[1] = spawns[1][1]
+            players[lobby.priority[i]].pos[0] += i
         }
+        this.map = maps[1]
         this.loop = setInterval(gameSessionUpdate,16,this.id)
-        this.map = maps[0]
     }
 }
 
@@ -207,7 +211,7 @@ io.on("connection", (socket) => {
     })
     socket.on("keyUp", (a) => {
         thisPlayer = players[playerID]
-        if(players[playerID].group = "gameSession"){
+        if(players[playerID].group = "gameSession" ){
             let xv = sessions[thisPlayer.sessionID].players[playerID].vect[0]
             let yv = sessions[thisPlayer.sessionID].players[playerID].vect[1]
             switch(a) {
@@ -236,6 +240,8 @@ io.on("connection", (socket) => {
     socket.on("disconnect", (socket) => {
         debug("A player has disconnected")
         console.log("playerID:", playerID)
+        
+
         /* myTimeout = setTimeout(() => {
             if(players[playerID])
             if(players[playerID].group === "lobby"){
@@ -271,6 +277,7 @@ function gameSessionUpdate(i) {
         j.pos[1] += j.move[1] * j.v
 
         io.to(j.socketID).emit("gameSessionUpdate", sessions[i])
+        console.log(j.pos)
     }
 }
 
