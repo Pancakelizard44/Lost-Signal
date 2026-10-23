@@ -239,7 +239,6 @@ io.on("connection", (socket) => {
         }
     })
 
-
     socket.on("disconnect", (socket) => {
         debug("A player has disconnected")
         console.log("playerID:", playerID)
@@ -260,6 +259,10 @@ io.on("connection", (socket) => {
         }, 10000) */
     })
 })
+
+setInterval(() => {
+    io.emit("heartBeat")
+}, 1000)
 
 function preLobbyUpdate() {
     io.emit("preLobbyUpdate", players,lobbies)
