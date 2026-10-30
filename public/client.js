@@ -10,6 +10,7 @@ let connected = false
 let myMessage = false
 let correction = 0
 let connectionCheck = false
+let menuUp = false
 
 let playerID = localStorage.getItem("playerID")
 let userName = localStorage.getItem("userName")
@@ -143,8 +144,9 @@ function serverConnection(){
             socket.on("gameSessionUpdate", (thisSession) => {
                 players = thisSession.players
                 session = thisSession
-                buttons = []
                 thisMap = thisSession.map
+            })
+            socket.on("gameSessionRefresh", () => {
                 refreshSession()
             })
 
@@ -176,7 +178,9 @@ function myAlert(m){
 
 document.addEventListener("keydown", (a) => {
     if(players[playerID]){
-        if(a.keyCode >= 32){
+        if(a.key === "m"){
+            menu()
+        } else if(a.keyCode >= 32){
             socket.emit("keyDown", a.keyCode)
         } 
     } else {
@@ -277,13 +281,14 @@ function refreshLobbies(){
     j = 0
     for(let id in lobbies){
         let i = lobbies[id]
-        if(j + 1.5 >= mapSize){ k++ }
+        if(j + 1.5 >= mapSize){ k++; j = 0}
+        if(i.priority.length >= 4){
+            let lobbyText = "> " + players[i.priority[0]].userName + "'s lobby | players: " + i.priority.length + "/4"
 
-        let lobbyText = "> " + players[i.priority[0]].userName + "'s lobby | players: " + i.priority.length + "/4"
+            buttons.push(new myButton((k * 6) *cellSize, (j + 1.5) * cellSize, 5 * cellSize, 0.8 * cellSize, lobbyText , [255,0,0], cellSize * 0.3 ,LEFT, joinLobby, id))
 
-        buttons.push(new myButton((k * 6) *cellSize, (j + 1.5) * cellSize, 5 * cellSize, 0.8 * cellSize, lobbyText , [255,0,0], cellSize * 0.3 ,LEFT, joinLobby, id))
-
-        j++
+            j++
+        }
     }
     console.log("pre lobby")
 }
@@ -350,6 +355,10 @@ function drawGameSession(){
         fill("blue")
         circle(width/2,height/2,cellSize)
     }
+    if(menuUp){
+        fill(0,0,0,100)
+        rect(0,0,width,height)
+    }
 }
 function drawWorld() {
     strokeWeight(0)
@@ -402,4 +411,29 @@ function drawPlayers() {
 function refreshSession() {
     buttons = []
     localStorage.setItem("inSession", true)
+    console.log("session refresh")
+}
+function menu() {
+    buttons = []
+    if(menuUp) {
+        menuUp = false
+    } else {
+        menuUp = true
+        buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 0.5, cellSize * 4, cellSize, "Back",[255,0,0], cellSize/2, CENTER, menu))
+        buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 1.5, cellSize * 4, cellSize, "Leave",[255,0,0], cellSize/2, CENTER, areYouSure))
+    }
+}
+function areYouSure() {
+    buttons = []
+    buttons.push(new myButton(width/2 - 3 * cellSize, cellSize * 2, cellSize * 3, cellSize, "Leave",[255,0,0], cellSize/2, CENTER, leaveSession))
+    buttons.push(new myButton(width/2, cellSize * 2, cellSize * 3, cellSize, "Go back",[255,0,0], cellSize/2, CENTER, noLeave))
+}
+function leaveSession() {
+    menuUp = false 
+    socket.emit("leaveSession")
+    localStorage.setItem("inSession", false)
+}
+function noLeave () {
+    menuUp = false 
+    menu()
 }
