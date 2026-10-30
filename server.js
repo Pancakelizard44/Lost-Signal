@@ -17,7 +17,7 @@ class player {
         this.userName = name
         this.pos = [4.5,4.5]
         this.vect = [0,0]
-        this.v = 1/20
+        this.v = 1/10
         this.move = [0,0]
         this.hitBox = 1 //this is ths length of the square which the player collition acts
     }
@@ -118,9 +118,22 @@ class gameSession {
             players[lobby.priority[i]].pos[0] = spawns[1][0]
             players[lobby.priority[i]].pos[1] = spawns[1][1]
             players[lobby.priority[i]].pos[0] += i
+            gameSessionRefresh(players[lobby.priority[i]].socketID)
         }
         this.map = maps[1]
         this.loop = setInterval(gameSessionUpdate,16,this.id)
+    }
+
+    leave(ID) {
+        delete this.players[ID] 
+        players[ID].sessionID = 0
+        players[ID].group = "preLobby"
+
+        if(Object.keys(this.players).length === 0){
+            clearInterval(this.loop)
+            delete sessions[this.id]
+        }
+        preLobbyUpdate()
     }
 }
 
@@ -162,6 +175,8 @@ io.on("connection", (socket) => {
     }
     if(players[playerID].group === "lobby"){
         lobbyUpdate(lobbies[players[playerID].sessionID])
+    } else if(players[playerID].group === "gameSession"){
+        gameSessionRefresh(socket.id)
     } else {
         preLobbyUpdate()
     }
@@ -189,7 +204,6 @@ io.on("connection", (socket) => {
 
     socket.on("startGameSession", () => {
         sessions[players[playerID].sessionID] = new gameSession(lobbies[players[playerID].sessionID])
-
         debug("a new session has been created session ID: ", players[playerID].sessionID)
     })
     socket.on("keyDown", (a) => {
@@ -238,6 +252,9 @@ io.on("connection", (socket) => {
             
         }
     })
+    socket.on("leaveSession", () => {
+        sessions[players[playerID].sessionID].leave(playerID)
+    })
 
     socket.on("disconnect", (socket) => {
         debug("A player has disconnected")
@@ -284,6 +301,9 @@ function gameSessionUpdate(i) {
 
         io.to(j.socketID).emit("gameSessionUpdate", sessions[i])
     }
+}
+function gameSessionRefresh(i) {
+    io.to(i).emit("gameSessionRefresh")
 }
 
 function debug(message){
