@@ -233,12 +233,12 @@ function draw(){
         textAlign(LEFT,CENTER)
         noFill()
         stroke("red")
-        rect(width/2 - cellSize * 1.5,2.7*cellSize,3*cellSize,0.2*cellSize)
+        rect(width/2 - cellSize * 2.5, 2.7*cellSize, 5*cellSize, 0.2*cellSize)
         fill("red")
         if(userName){
-            text("Username> " + userName + " <",width/2 - cellSize * 1.5,2.8 *cellSize)
+            text("Username> " + userName + " <",width/2 - cellSize * 2.5,2.8 *cellSize)
         } else {
-            text("Username>  <",width/2 - cellSize * 1.5,2.8 * cellSize)
+            text("Username>  <",width/2 - cellSize * 2.5,2.8 * cellSize)
         }
     }
     for(let i = 0; i < buttons.length; i++){
