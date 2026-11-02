@@ -101,7 +101,7 @@ async function setup() {
 //Functions which will be used in all game states 
 function serverConnection(){
     if(userName){
-        if(userName.length >= 15){ myAlert("Usernames have a maximum of 15 characters") } else {
+        if(userName.length >= 30){ myAlert("Usernames have a maximum of 30 characters") } else {
             localStorage.setItem("userName", userName)
             socket = io({
                 auth:{playerID: playerID,userName: userName}
