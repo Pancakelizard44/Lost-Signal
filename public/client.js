@@ -2,6 +2,7 @@
 let players = {}
 let lobbies = {}
 let buttons = []
+let texts = []
 let thisMap
 let number = 0
 let cellSize
@@ -11,6 +12,8 @@ let myMessage = false
 let correction = 0
 let connectionCheck = false
 let menuUp = false
+let healthBarXOffSet 
+let healthBarYOffSet
 
 let playerID = localStorage.getItem("playerID")
 let userName = localStorage.getItem("userName")
@@ -81,10 +84,31 @@ class myButton {
         }     
     }
 }
+class textBox {
+    constructor(x,y,size,align,colour,content){
+        this.x = x
+        this.y = y
+        this.size = size
+        this.align = align
+        this.r = colour[0]
+        this.g = colour[1]
+        this.b = colour[2]
+        this.content = content
+    }
+    draw() {
+        fill(this.r,this.g,this.b)
+        textSize(this.size)
+        textAlign(this.align,CENTER)
+        strokeWeight(0)
+        text(this.content, this.x,this.y)
+    }
+}
 
 async function setup() {
     createCanvas(windowWidth,windowHeight)
     cellSize = floor(min(width / (mapSize + 2), height / (mapSize + 2)))
+    healthBarXOffSet = 0.1 * cellSize
+    healthBarYOffSet = 0.1 * cellSize
 
     let inSession = localStorage.getItem("inSession")
 
@@ -94,6 +118,7 @@ async function setup() {
         buttons.push(new myButton(width/2 - cellSize * 1.5,3*cellSize,3*cellSize,1*cellSize,"> Start",[255,0,0],cellSize * 0.5,LEFT,serverConnection))
     }
 
+    textFont("Courier New")
     textWrap(WORD)
 }
 
@@ -141,10 +166,9 @@ function serverConnection(){
                 lobby = thisLobby
                 refreshLobby()
             })
-            socket.on("gameSessionUpdate", (thisSession) => {
-                players = thisSession.players
-                session = thisSession
-                thisMap = thisSession.map
+            socket.on("gameSessionUpdate", (mapData,playerData) => {
+                players = playerData
+                thisMap = mapData
             })
             socket.on("gameSessionRefresh", () => {
                 refreshSession()
@@ -180,7 +204,7 @@ document.addEventListener("keydown", (a) => {
     if(players[playerID]){
         if(a.key === "m"){
             menu()
-        } else if(a.keyCode >= 32){
+        } else if(a.keyCode >= 32 || a.keyCode === 16){
             socket.emit("keyDown", a.keyCode)
         } 
     } else {
@@ -197,7 +221,7 @@ document.addEventListener("keydown", (a) => {
     }
 })
 document.addEventListener("keyup", (a) => {
-    if(players[playerID] && a.keyCode >= 32){
+    if(players[playerID] && (a.keyCode >= 32 || a.keyCode === 16)){
         socket.emit("keyUp", a.keyCode)
     }
 })
@@ -244,6 +268,9 @@ function draw(){
     for(let i = 0; i < buttons.length; i++){
         buttons[i].draw(mouseX,mouseY)
     }
+    for(let i = 0; i < texts.length; i++){
+        texts[i].draw()
+    }
     if(myMessage){
         strokeWeight(0)
         fill(0,0,0,200)
@@ -276,6 +303,7 @@ function joinLobby(lobbyID) {
 }
 function refreshLobbies(){
     buttons = []
+    texts = []
     buttons.push(new myButton(0, 0, width, 1 * cellSize,"> Create lobby",[255,0,0],cellSize * 0.4,LEFT, createLobby))
     k = 0
     j = 0
@@ -316,6 +344,7 @@ function drawLobby(){
 function refreshLobby(){
     localStorage.setItem("inSession", true)
     buttons = []
+    texts = []
     buttons.push(new myButton(0, height - cellSize * 2, width, cellSize, "> Leave", [255,0,0], cellSize / 2, LEFT, leave))
     if(playerID === lobby.priority[0]){
         buttons.push(new myButton(0, height - cellSize * 3, width,cellSize,"> Start",[255,0,0], cellSize/2,LEFT, startGameSession))
@@ -344,6 +373,7 @@ function drawGameSession(){
         thisPlayer = players[playerID]
         camX = thisPlayer.pos[0] * cellSize
         camY = thisPlayer.pos[1] * cellSize
+        
 
         push()
         translate(width/2 - camX, height/2 - camY)
@@ -354,6 +384,7 @@ function drawGameSession(){
 
         fill("blue")
         circle(width/2,height/2,cellSize)
+        drawHud()
     }
     if(menuUp){
         fill(0,0,0,100)
@@ -408,25 +439,45 @@ function drawPlayers() {
         text(i.userName, i.pos[0] * cellSize,(i.pos[1] - 0.75) * cellSize )
     }
 }
+function drawHud() {
+    strokeWeight(0)
+    fill("red")
+    rect(healthBarXOffSet, healthBarYOffSet , 2 * cellSize * players[playerID].health / 100 , 0.25 * cellSize)
+    fill("green")
+    rect(healthBarXOffSet, healthBarYOffSet + 0.5 * cellSize , 2 * cellSize * players[playerID].stamina / 100, 0.25 * cellSize)
+
+    noFill()
+    strokeWeight(0.01 * cellSize)
+    rect(healthBarXOffSet, healthBarYOffSet , 2 * cellSize, 0.25 * cellSize)
+    rect(healthBarXOffSet, healthBarYOffSet + 0.5 * cellSize , 2 * cellSize, 0.25 * cellSize)
+}
+
 function refreshSession() {
     buttons = []
+    texts = []
     localStorage.setItem("inSession", true)
     console.log("session refresh")
 }
 function menu() {
+    texts = []
     buttons = []
     if(menuUp) {
         menuUp = false
     } else {
         menuUp = true
         buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 0.5, cellSize * 4, cellSize, "Back",[255,0,0], cellSize/2, CENTER, menu))
-        buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 1.5, cellSize * 4, cellSize, "Leave",[255,0,0], cellSize/2, CENTER, areYouSure))
+        buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 1.5, cellSize * 4, cellSize, "Options",[255,0,0], cellSize/2, CENTER, options))
+        buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 2.5, cellSize * 4, cellSize, "Controls",[255,0,0], cellSize/2, CENTER, controls))
+        buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 3.5, cellSize * 4, cellSize, "Leave",[255,0,0], cellSize/2, CENTER, areYouSure))
     }
 }
 function areYouSure() {
     buttons = []
-    buttons.push(new myButton(width/2 - 3 * cellSize, cellSize * 2, cellSize * 3, cellSize, "Leave",[255,0,0], cellSize/2, CENTER, leaveSession))
-    buttons.push(new myButton(width/2, cellSize * 2, cellSize * 3, cellSize, "Go back",[255,0,0], cellSize/2, CENTER, noLeave))
+    buttons.push(new myButton(width/2 - 3 * cellSize, cellSize * 4, cellSize * 3, cellSize, "Yes",[255,0,0], cellSize/2, CENTER, leaveSession))
+    buttons.push(new myButton(width/2, cellSize * 4, cellSize * 3, cellSize, "No",[255,0,0], cellSize/2, CENTER, noLeave))
+
+    texts = []
+    texts.push(new textBox(width/2, cellSize * 2.5, cellSize * 0.5, CENTER, [255,0,0], "Are you sure you want to leave?"))
 }
 function leaveSession() {
     menuUp = false 
@@ -436,4 +487,51 @@ function leaveSession() {
 function noLeave () {
     menuUp = false 
     menu()
+}
+function controls() {
+    buttons = []
+    buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 0.5, cellSize * 4, cellSize, "Back",[255,0,0], cellSize/2, CENTER, noLeave))
+
+    texts = []
+    texts.push(new textBox(width/2 - cellSize * 3, cellSize * 2, cellSize * 0.5, LEFT, [255,0,0], "Move up"))
+    texts.push(new textBox(width/2 - cellSize * 3, cellSize * 2.5, cellSize * 0.5, LEFT, [255,0,0], "Move left"))
+    texts.push(new textBox(width/2 - cellSize * 3, cellSize * 3, cellSize * 0.5, LEFT, [255,0,0], "Move down"))
+    texts.push(new textBox(width/2 - cellSize * 3, cellSize * 3.5, cellSize * 0.5, LEFT, [255,0,0], "Move right"))
+
+    texts.push(new textBox(width/2 + cellSize * 1.5, cellSize * 2, cellSize * 0.5, CENTER, [255,0,0], "W"))
+    texts.push(new textBox(width/2 + cellSize * 1.5, cellSize * 2.5, cellSize * 0.5, CENTER, [255,0,0], "A"))
+    texts.push(new textBox(width/2 + cellSize * 1.5, cellSize * 3, cellSize * 0.5, CENTER, [255,0,0], "S"))
+    texts.push(new textBox(width/2 + cellSize * 1.5, cellSize * 3.5, cellSize * 0.5, CENTER, [255,0,0], "D"))
+}
+function options () {
+    buttons = []
+    buttons.push(new myButton(width/2 - 2 * cellSize, cellSize * 0.5, cellSize * 4, cellSize, "Back",[255,0,0], cellSize/2, CENTER, noLeave))
+    
+    texts = []
+    texts.push(new textBox(width/2, cellSize * 2, cellSize * 0.3, CENTER, [255,0,0], "Health bar and stamina bar location"))
+
+    buttons.push(new myButton(width/2 - cellSize, cellSize * 2.5, cellSize, cellSize, "Top left",[255,0,0], cellSize/8, CENTER, changeBarsLocation, "TopLeft"))
+    buttons.push(new myButton(width/2, cellSize * 2.5, cellSize, cellSize, "Top Right",[255,0,0], cellSize/8, CENTER, changeBarsLocation, "TopRight"))
+    buttons.push(new myButton(width/2 - cellSize, cellSize * 3.5, cellSize, cellSize, "Bottom Left",[255,0,0], cellSize/8, CENTER, changeBarsLocation, "BottomLeft"))
+    buttons.push(new myButton(width/2, cellSize * 3.5, cellSize, cellSize, "Bottom right",[255,0,0], cellSize/8, CENTER, changeBarsLocation, "BottomRight"))
+}
+function changeBarsLocation(location) {
+    switch(location) {
+        case "TopLeft":
+            healthBarXOffSet = 0.1 * cellSize
+            healthBarYOffSet = 0.1 * cellSize
+            break;
+        case "TopRight":
+            healthBarXOffSet = width - 2.1 * cellSize
+            healthBarYOffSet = 0.1 * cellSize
+            break;
+        case "BottomLeft":
+            healthBarXOffSet = 0.1 * cellSize
+            healthBarYOffSet = height - 0.85 * cellSize
+            break;
+        case "BottomRight":
+            healthBarXOffSet = width - 2.1 * cellSize
+            healthBarYOffSet = height - 0.85 * cellSize
+            break;
+    }
 }
