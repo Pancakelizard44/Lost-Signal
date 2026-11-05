@@ -17,9 +17,14 @@ class player {
         this.userName = name
         this.pos = [4.5,4.5]
         this.vect = [0,0]
-        this.v = 1/10
+        this.v = playerWalkV
         this.move = [0,0]
         this.hitBox = 1 //this is ths length of the square which the player collition acts
+        this.stamina = 100
+        this.staminaIncreasing = false
+        this.staminaTimeOut = false
+        this.health = 100
+        this.detectRange = 5
     }
 
     checkTarget() {
@@ -53,6 +58,27 @@ class player {
         if(moveString === 1 || moveString === -1) {
             this.move = [Math.pow(0.5,0.5) * this.move[0], Math.pow(0.5,0.5) * this.move[1]]
         }
+    }
+
+    staminaCheck() {
+        if(this.stamina <= 0) {
+            this.v = playerWalkV
+        }
+        if(this.v === playerWalkV && !this.staminaIncreasing && !this.staminaTimeOut) {
+            this.staminaTimeOut = setTimeout(() => {
+                this.staminaIncreasing = true
+                this.staminaTimeOut = false
+            }, 500)
+        }
+        
+        if(this.staminaIncreasing && this.stamina < 100){
+            this.stamina += 1
+        }
+    }
+}
+class clientPlayer {
+    constructor(){
+
     }
 }
 function isWall(x,y,inputMap){
@@ -110,7 +136,7 @@ class lobby {
 
 class gameSession {
     constructor(lobby){
-        this.players = lobby.players
+        this.players = lobby.priority
         this.id = lobby.id
         delete lobbies[this.id]
         for(let i = 0; i < lobby.priority.length; i++){
@@ -142,6 +168,8 @@ let offlinePlayers = {}
 let lobbies = {}
 let sessions = {}
 let myTimeout = false
+playerSprintV = 1/10
+playerWalkV = 1/20
 
 //server communication with client
 io.on("connection", (socket) => {
@@ -152,6 +180,7 @@ io.on("connection", (socket) => {
         debug("A player has reconnected")
         socket.to(players[playerID].socketID).emit("closeTab")
         players[playerID].socketID = socket.id
+        players[playerID].userName = userName
         console.log("playerID:", playerID, " socketID:", socket.id)
 
         if(myTimeout){
@@ -164,6 +193,7 @@ io.on("connection", (socket) => {
         delete offlinePlayers[playerID]
         socket.to(players[playerID].socketID).emit("closeTab")
         players[playerID].socketID = socket.id
+        players[playerID].userName = userName
         
         if(!(lobbies[offlinePlayers[playerID].socketID] || sessions[offlinePlayers[playerID].socketID])){
             players[playerID].sessionID = 0
@@ -211,16 +241,21 @@ io.on("connection", (socket) => {
         if(players[playerID].group = "gameSession"){
             switch(a) {
                 case 87 || 38:
-                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = -1
+                    players[playerID].vect[1] = -1
                     break;
                 case 65 || 37:
-                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = -1
+                    players[playerID].vect[0] = -1
                     break;
                 case 83 || 40:
-                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = 1
+                    players[playerID].vect[1] = 1
                     break;
                 case 68 || 39:
-                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = 1
+                    players[playerID].vect[0] = 1
+                    break;
+                case 16:
+                    if(players[playerID].stamina > 0)
+                    players[playerID].v = playerSprintV
+                    players[playerID].staminaIncreasing = false
                     break;
             }
         }
@@ -229,24 +264,27 @@ io.on("connection", (socket) => {
     socket.on("keyUp", (a) => {
         thisPlayer = players[playerID]
         if(players[playerID].group = "gameSession" ){
-            let xv = sessions[thisPlayer.sessionID].players[playerID].vect[0]
-            let yv = sessions[thisPlayer.sessionID].players[playerID].vect[1]
+            let xv = players[playerID].vect[0]
+            let yv = players[playerID].vect[1]
             switch(a) {
                 case 87 || 38:
                     if(yv < 0)
-                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = 0
+                    players[playerID].vect[1] = 0
                     break;
                 case 65 || 37:
                     if(xv < 0)
-                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = 0
+                    players[playerID].vect[0] = 0
                     break;
                 case 83 || 40:
                     if(yv > 0)
-                    sessions[thisPlayer.sessionID].players[playerID].vect[1] = 0
+                    players[playerID].vect[1] = 0
                     break;
                 case 68 || 39:
                     if(xv > 0)
-                    sessions[thisPlayer.sessionID].players[playerID].vect[0] = 0
+                    players[playerID].vect[0] = 0
+                    break;
+                case 16:
+                    players[playerID].v = playerWalkV
                     break;
             }
             
@@ -292,14 +330,32 @@ function lobbyUpdate(i) {
 }
 
 function gameSessionUpdate(i) {
-    if(sessions[i].players)
-    for(let id in sessions[i].players){
-        let j = sessions[i].players[id]
-        j.checkTarget()
-        j.pos[0] += j.move[0] * j.v
-        j.pos[1] += j.move[1] * j.v
+    let playersToEmit = {}
+    for(let a = 0; a < sessions[i].players.length; a++){
+        b = players[sessions[i].players[a]]
+        playersToEmit[b.playerID] = {
+            playerID: b.playerID,
+            socketID: b.socketID,
+            group: b.group,
+            sessionID: b.sessionID,
+            pos: b.pos,
+            vect: b.vect,
+            health: b.health,
+            stamina: b.stamina,
+            userName: b.userName
+        }
+    }
 
-        io.to(j.socketID).emit("gameSessionUpdate", sessions[i])
+    if(sessions[i].players)
+    for(let j = 0; j < sessions[i].players.length; j++){
+        let k = players[sessions[i].players[j]]
+        k.checkTarget()
+        k.staminaCheck()
+        k.pos[0] += k.move[0] * k.v
+        k.pos[1] += k.move[1] * k.v
+        if(k.v === playerSprintV){k.stamina -= 0.5}
+
+        io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit)
     }
 }
 function gameSessionRefresh(i) {
@@ -330,9 +386,12 @@ let mapPresets = [
     //9-10 = straight variations
     //9-upToDown 10-leftToRight
     //dead end variations 
-    //11-right 12-up 13-left 14-down
+    //11-right 12-up 13-left 14-down the direction of the enterance
+    //15 + = rooms
     //15-start room
     //16-full room
+    //17-29 = empty rooms will 1 enterance
+    //17-up 18-right 19-down 20-left
     [
         [1, 1, 1, 0, 0, 0, 1, 1, 1],
         [2, 2, 2, 0, 0, 0, 2, 2, 2],
@@ -486,13 +545,13 @@ let mapPresets = [
         [1, 1, 1, 0, 0, 0, 1, 1, 1]
     ],[
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 2, 2, 2],
-        [1, 0, 0, 0, 0, 0, 2, 2, 2],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 0, 0, 0, 0, 0, 0, 0, 0],
         [1, 0, 0, 0, 0, 0, 0, 0, 0],
         [1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1]
     ],[
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -503,6 +562,46 @@ let mapPresets = [
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ],[
+        [1, 1, 1, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ],[
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 2],
+        [1, 0, 0, 0, 0, 0, 0, 0, 2],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0, 0],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1, 1, 1, 1, 1]
+    ],[
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 0, 0, 0, 1, 1, 1]
+    ],[
+        [1, 1, 1, 1, 1, 1, 1, 1, 1],
+        [2, 0, 0, 0, 0, 0, 0, 0, 1],
+        [2, 0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 1],
         [1, 1, 1, 1, 1, 1, 1, 1, 1]
     ]
 ]
@@ -543,18 +642,18 @@ mapGrids[0] = [
     [6,3,3,3,7],
 ]
 mapGrids[1] = [
-    [16,5,13,16],
-    [11,0,1,10],
-    [16,9,9,16],
-    [16,6,2,16],
-    [16,11,2,16],
-    [16,14,9,16],
-    [15,0,2,16],
-    [16,9,16,16],
-    [16,6,16,16],
-    [16,16,16,16],
-    [16,16,16,16],
-    [16,16,16,16],
+    [16,5,13,16,16,16,16,16],
+    [11,0,1,10,1,16,16,16],
+    [16,9,9,16,4,10,8,16],
+    [16,6,0,8,9,16,6,20],
+    [16,11,2,17,9,16,14,16],
+    [16,14,9,16,6,10,0,16],
+    [15,0,2,16,16,16,9,19],
+    [16,9,6,10,8,11,0,7],
+    [16,6,1,16,9,16,9,16],
+    [16,5,3,1,3,10,3,20],
+    [16,6,10,3,13,16,16,16],
+    [16,16,16,16,16,16,16,16],
 ]
 
 maps = []
