@@ -100,7 +100,8 @@ class player {
                 for(let j = 0; j < sessions[this.sessionID].items.length; j++){
                     target = sessions[this.sessionID].items[j]
             
-                    if(this.pos[0] < target.pos[0] + 1 
+                    if( target.visible
+                    && this.pos[0] < target.pos[0] + 1 
                     && this.pos[0] > target.pos[0] - 1 
                     && this.pos[1] < target.pos[1] + 1 
                     && this.pos[1] > target.pos[1] - 1){
@@ -229,13 +230,18 @@ class gameSession {
     }
 
     leave(ID) {
-        delete this.players[ID] 
+        for(let i = 0; i < this.players.length; i ++){
+            if(this.players[i] === ID){
+                this.players.splice(i)
+            }
+        }
         players[ID].sessionID = 0
         players[ID].group = "preLobby"
 
-        if(Object.keys(this.players).length === 0){
+        if(this.players.length === 0){
             clearInterval(this.loop)
             delete sessions[this.id]
+            console.log("test")
         }
         preLobbyUpdate()
     }
