@@ -166,9 +166,11 @@ function serverConnection(){
                 lobby = thisLobby
                 refreshLobby()
             })
-            socket.on("gameSessionUpdate", (mapData,playerData) => {
+            socket.on("gameSessionUpdate", (mapData,playerData,itemData,leverData) => {
                 players = playerData
                 thisMap = mapData
+                items = itemData
+                levers = leverData
             })
             socket.on("gameSessionRefresh", () => {
                 refreshSession()
@@ -424,8 +426,28 @@ function drawWorld() {
             }
             square(i*cellSize,j*cellSize,cellSize * 1.01)
         }
-    }   
+    }  
+    drawItems() 
     drawPlayers()
+}
+function drawItems() {
+    strokeWeight(cellSize * 0.1) 
+    fill("purple")
+    for(let i = 0; i < items.length; i++){
+        if(items[i].visible)
+        square((items[i].pos[0] - 0.25) * cellSize , (items[i].pos[1] - 0.25) * cellSize, cellSize * 0.5)
+    }
+
+
+    for(let i = 0; i < levers.length; i++){
+        if(levers[i].activated){
+            fill("green")
+        } else {
+            fill("red")
+        }
+
+        square((levers[i].pos[0] - 0.25) * cellSize , (levers[i].pos[1] - 0.25) * cellSize, cellSize * 0.5)
+    }
 }
 function drawPlayers() {
     textAlign(CENTER,CENTER)
