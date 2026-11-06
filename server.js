@@ -25,6 +25,7 @@ class player {
         this.staminaTimeOut = false
         this.health = 100
         this.detectRange = 5
+        this.holding = false
     }
 
     checkTarget() {
@@ -75,17 +76,90 @@ class player {
             this.stamina += 1
         }
     }
-}
-class clientPlayer {
-    constructor(){
 
+    interact(){
+        let target
+
+        for(let i = 0; i < sessions[this.sessionID].levers.length; i++){
+            target = sessions[this.sessionID].levers[i]
+
+            if(this.pos[0] < target.pos[0] + 1
+                && this.pos[0] > target.pos[0] - 1
+                && this.pos[1] < target.pos[1] + 1 
+                && this.pos[1] > target.pos[1] - 1){
+
+                target.activate()
+                break
+            } 
+
+            if(i === sessions[this.sessionID].levers.length - 1){
+                if(this.holding !== false){
+                    sessions[this.sessionID].items[this.holding].drop()
+                    this.holding = false
+                } else 
+                for(let j = 0; j < sessions[this.sessionID].items.length; j++){
+                    target = sessions[this.sessionID].items[j]
+            
+                    if(this.pos[0] < target.pos[0] + 1 
+                    && this.pos[0] > target.pos[0] - 1 
+                    && this.pos[1] < target.pos[1] + 1 
+                    && this.pos[1] > target.pos[1] - 1){
+
+                        this.holding = j
+                        target.pickUp(this.playerID)
+                        break
+                    }
+                    console.log(target.pos)
+                }
+                console.log("test")
+            }
+        }    
     }
+    
 }
 function isWall(x,y,inputMap){
     x = Math.floor(x)
     y = Math.floor(y)
     if(inputMap[y][x] === 1 || inputMap[y][x] === 2) {return true}
     return false
+}
+
+class item {
+    constructor(arr, type){
+        // arr = [Xmax, Xmin, Ymax, Ymin]
+        this.pos = []
+        this.pos[0] = arr[0] + Math.random() * (arr[1] - arr[0])
+        this.pos[1] = arr[2] + Math.random() * (arr[3] - arr[2])
+        this.type = type
+        this.visible = true
+        this.owner = 0 //playerID of the player who has the item 0 if no one is holding it
+    }
+
+    pickUp(ID){
+        this.visible = false
+        this.owner = ID
+        debug("picked up")
+    }
+    drop(){
+        this.pos[0] = players[this.owner].pos[0]
+        this.pos[1] = players[this.owner].pos[1]
+        this.visible = true
+        this.owner = 0
+        debug("dropped")
+    }
+}
+
+class lever {
+    constructor(arr) {
+        this.pos = []
+        this.pos[0] = arr[0]
+        this.pos[1] = arr[1]
+        this.activated = false
+    }
+
+    activate() {
+        this.activated = true
+    }
 }
 
 class lobby {
@@ -136,18 +210,22 @@ class lobby {
 
 class gameSession {
     constructor(lobby){
+        this.mapNumber = 0
         this.players = lobby.priority
         this.id = lobby.id
         delete lobbies[this.id]
         for(let i = 0; i < lobby.priority.length; i++){
             players[lobby.priority[i]].group = "gameSession"
-            players[lobby.priority[i]].pos[0] = spawns[1][0]
-            players[lobby.priority[i]].pos[1] = spawns[1][1]
+            players[lobby.priority[i]].pos[0] = spawns[this.mapNumber][0]
+            players[lobby.priority[i]].pos[1] = spawns[this.mapNumber][1]
             players[lobby.priority[i]].pos[0] += i
             gameSessionRefresh(players[lobby.priority[i]].socketID)
         }
-        this.map = maps[1]
+        this.map = maps[this.mapNumber]
         this.loop = setInterval(gameSessionUpdate,16,this.id)
+        this.items = []
+        this.levers = []
+        this.createItems()
     }
 
     leave(ID) {
@@ -161,6 +239,15 @@ class gameSession {
         }
         preLobbyUpdate()
     }
+
+    createItems() {
+        console.log(leverSpawns[this.mapNumber][0])
+        this.levers.push(new lever(leverSpawns[this.mapNumber][0]))
+        this.levers.push(new lever(leverSpawns[this.mapNumber][1]))
+        
+        this.items.push(new item(itemSpawns[this.mapNumber][0], 0))
+    }
+
 }
 
 let players = {}
@@ -256,6 +343,9 @@ io.on("connection", (socket) => {
                     if(players[playerID].stamina > 0)
                     players[playerID].v = playerSprintV
                     players[playerID].staminaIncreasing = false
+                    break;
+                case 32:
+                    players[playerID].interact()
                     break;
             }
         }
@@ -355,7 +445,7 @@ function gameSessionUpdate(i) {
         k.pos[1] += k.move[1] * k.v
         if(k.v === playerSprintV){k.stamina -= 0.5}
 
-        io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit)
+        io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit, sessions[i].items, sessions[i].levers)
     }
 }
 function gameSessionRefresh(i) {
@@ -545,8 +635,8 @@ let mapPresets = [
         [1, 1, 1, 0, 0, 0, 1, 1, 1]
     ],[
         [1, 1, 1, 1, 1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
-        [1, 0, 0, 0, 0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0, 0, 0, 0, 2],
+        [1, 0, 0, 0, 0, 0, 0, 0, 2],
         [1, 0, 0, 0, 0, 0, 0, 0, 0],
         [1, 0, 0, 0, 0, 0, 0, 0, 0],
         [1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -635,11 +725,9 @@ function createMap(arr) {
 
 mapGrids = []
 mapGrids[0] = [
-    [5,1,1,1,8],
-    [4,0,0,0,2],
-    [4,0,0,0,2],
-    [4,0,0,0,2],
-    [6,3,3,3,7],
+    [16,14,16],
+    [15,0,20],
+    [16,16,16],
 ]
 mapGrids[1] = [
     [16,5,13,16,16,16,16,16],
@@ -656,10 +744,19 @@ mapGrids[1] = [
     [16,16,16,16,16,16,16,16],
 ]
 
-maps = []
+let maps = []
 maps[0] = createMap(mapGrids[0])
 maps[1] = createMap(mapGrids[1])
 
-spawns = []
-spawns[0] = [4.5,4.5]
+let spawns = []
+spawns[0] = [4.5,13.5]
 spawns[1] = [4.5, 6.5 * 9]
+
+//[Xmin,Xmax, Ymin,Ymax]
+let itemSpawns = [[]]
+itemSpawns[0][0] = [9 * 1.4, 9 * 1.6, 9 * 1.4, 9 * 1.6]
+
+//[x,y]
+let leverSpawns = [[]]
+leverSpawns[0][0] = [1.5 * 9, 3.5]
+leverSpawns[0][1] = [1.5 * 9, 17.5]
