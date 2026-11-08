@@ -110,11 +110,11 @@ class player {
                         target.pickUp(this.playerID)
                         break
                     }
-                    console.log(target.pos)
                 }
-                console.log("test")
             }
-        }    
+        }   
+        
+        sessions[this.sessionID].winCheck()
     }
     
 }
@@ -226,7 +226,9 @@ class gameSession {
         this.loop = setInterval(gameSessionUpdate,16,this.id)
         this.items = []
         this.levers = []
+        this.winArea  //[Xmin,Xmax, Ymin,Ymax]
         this.createItems()
+        this.win = false
     }
 
     leave(ID) {
@@ -247,13 +249,64 @@ class gameSession {
     }
 
     createItems() {
-        console.log(leverSpawns[this.mapNumber][0])
         this.levers.push(new lever(leverSpawns[this.mapNumber][0]))
         this.levers.push(new lever(leverSpawns[this.mapNumber][1]))
         
         this.items.push(new item(itemSpawns[this.mapNumber][0], 0))
+
+        this.winArea = winAreas[this.mapNumber]
     }
 
+    winCheck() {
+        if(!this.win)
+        this.win = true
+        for(let i = 0; i < this.levers.length; i ++) {
+            if(!this.levers[i].activated){
+                this.win = false
+                break;
+            }
+        }
+        for(let i = 0; i < this.items.length; i ++) {
+            let target = this.items[i]
+            if(target.pos[0] < this.winArea[0]
+            || target.pos[0] > this.winArea[1]
+            || target.pos[1] < this.winArea[2]
+            || target.pos[1] > this.winArea[3]
+            ){
+                this.win = false
+                break;
+            }
+        }
+        if(this.win) {
+            this.winGame()
+        }
+    }
+    
+    winGame(){
+        let playersToEmit = {}
+        for(let a = 0; a < this.players.length; a++){
+            let b = players[this.players[a]]
+            playersToEmit[b.playerID] = {
+                playerID: b.playerID,
+                socketID: b.socketID,
+                group: "preLobby",
+                sessionID: b.sessionID,
+                health: b.health,
+                healthDisplay: 100,
+                userName: b.userName
+            }
+        }
+
+        clearInterval(this.loop)
+
+        for(let j = 0; j < this.players.length; j++){
+            let k = players[this.players[j]]
+            k.group = "preLobby"
+            io.to(k.socketID).emit("WIN", playersToEmit)
+            preLobbyUpdate()
+        }
+        debug("WIn")
+    }
 }
 
 let players = {}
@@ -274,7 +327,7 @@ io.on("connection", (socket) => {
         socket.to(players[playerID].socketID).emit("closeTab")
         players[playerID].socketID = socket.id
         players[playerID].userName = userName
-        console.log("playerID:", playerID, " socketID:", socket.id)
+        console.log("playerID:", playerID, " socketID:", socket.id, " Group:", players[playerID].group)
 
         if(myTimeout){
             clearTimeout(myTimeout)
@@ -331,7 +384,7 @@ io.on("connection", (socket) => {
     })
     socket.on("keyDown", (a) => {
         thisPlayer = players[playerID]
-        if(players[playerID].group = "gameSession"){
+        if(players[playerID].group === "gameSession"){
             switch(a) {
                 case 87 || 38:
                     players[playerID].vect[1] = -1
@@ -359,7 +412,7 @@ io.on("connection", (socket) => {
     })
     socket.on("keyUp", (a) => {
         thisPlayer = players[playerID]
-        if(players[playerID].group = "gameSession" ){
+        if(players[playerID].group === "gameSession" ){
             let xv = players[playerID].vect[0]
             let yv = players[playerID].vect[1]
             switch(a) {
@@ -416,7 +469,19 @@ setInterval(() => {
 }, 1000)
 
 function preLobbyUpdate() {
-    io.emit("preLobbyUpdate", players,lobbies)
+    let playersToEmit = {}
+    for(let id in players){
+        let j = players[id]
+        
+        playersToEmit[id] = {
+            playerID: j.playerID,
+            socketID: j.socketID,
+            group: j.group,
+            sessionID: j.sessionID,
+            userName: j.userName
+        }
+        io.to(j.socketID).emit("preLobbyUpdate", playersToEmit,lobbies)
+    }   
 }
 function lobbyUpdate(i) {
     for(let id in i.players){
@@ -426,7 +491,10 @@ function lobbyUpdate(i) {
 }
 
 function gameSessionUpdate(i) {
+    if(sessions[i].players){
+
     let playersToEmit = {}
+
     for(let a = 0; a < sessions[i].players.length; a++){
         b = players[sessions[i].players[a]]
         playersToEmit[b.playerID] = {
@@ -442,7 +510,6 @@ function gameSessionUpdate(i) {
         }
     }
 
-    if(sessions[i].players)
     for(let j = 0; j < sessions[i].players.length; j++){
         let k = players[sessions[i].players[j]]
         k.checkTarget()
@@ -452,6 +519,8 @@ function gameSessionUpdate(i) {
         if(k.v === playerSprintV){k.stamina -= 0.5}
 
         io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit, sessions[i].items, sessions[i].levers)
+    }
+
     }
 }
 function gameSessionRefresh(i) {
@@ -766,3 +835,7 @@ itemSpawns[0][0] = [9 * 1.4, 9 * 1.6, 9 * 1.4, 9 * 1.6]
 let leverSpawns = [[]]
 leverSpawns[0][0] = [1.5 * 9, 3.5]
 leverSpawns[0][1] = [1.5 * 9, 17.5]
+
+//[Xmin,Xmax, Ymin,Ymax]
+let winAreas = []
+winAreas[0] = [1, 8, 9+1, 9+4]
