@@ -14,6 +14,9 @@ let connectionCheck = false
 let menuUp = false
 let healthBarXOffSet 
 let healthBarYOffSet
+let playerSpacing
+let winScreen = false
+let tempPlayers
 
 let playerID = localStorage.getItem("playerID")
 let userName = localStorage.getItem("userName")
@@ -109,8 +112,10 @@ async function setup() {
     cellSize = floor(min(width / (mapSize + 2), height / (mapSize + 2)))
     healthBarXOffSet = 0.1 * cellSize
     healthBarYOffSet = 0.1 * cellSize
+    playerSpacing = width/20
 
     let inSession = localStorage.getItem("inSession")
+
 
     if(inSession === 'true'){
         serverConnection()
@@ -149,16 +154,14 @@ function serverConnection(){
 
             //data from server
             socket.on("preLobbyUpdate", (playerData,lobbyData) => {
-                if(players[playerID]){
+                console.log(playerData)
+                if(!winScreen)
+                if(playerData[playerID]){
                     if(playerData[playerID].group === "preLobby"){
                         players = playerData
                         lobbies = lobbyData
                         refreshLobbies()
                     }
-                } else { 
-                    players = playerData
-                    lobbies = lobbyData
-                    refreshLobbies()
                 }
             }) 
             socket.on("lobbyUpdate", (thisLobby) => {
@@ -174,6 +177,7 @@ function serverConnection(){
             })
             socket.on("gameSessionRefresh", () => {
                 refreshSession()
+                console.log("session")
             })
 
             socket.on("playerAlert", (data) => {
@@ -186,6 +190,14 @@ function serverConnection(){
             socket.on("closeTab", () => {
                 alert("You can no longer use this window")
                 window.close()
+            })
+            socket.on("WIN" ,(playerData) => { 
+                players = playerData
+                tempPlayers = Object.values(playerData)
+                console.log("win")
+                winScreen = true
+
+                buttons.push(new myButton(0, 0.75 * height, width, cellSize, "Leave", [255,0,0] ,cellSize,LEFT, leaveWinScreen))
             })
 
             localStorage.setItem("inSession", false)
@@ -237,7 +249,10 @@ function mouseClicked() {
 
 //drawing
 function draw(){
-    if(players[playerID]){
+    if(winScreen){
+        drawWinScreen() 
+        console.log("test")
+    } else if(players[playerID]){
         switch(players[playerID].group){
             case "preLobby":
                 //draw prelobby
@@ -252,7 +267,7 @@ function draw(){
                 //draw game session
                 break;
         }
-    } else if(!connected){
+    }   else if(!connected){
         background(50)
         strokeWeight(cellSize * 0.005)
         textSize(cellSize * 0.2 * 0.8)
@@ -327,7 +342,6 @@ function refreshLobbies(){
 function drawLobby(){
     fill("red")
     background(50)
-    let playerSpacing = width/20
     for(let i = 0; i < 4; i++){
         noFill()
         stroke("red")
@@ -556,4 +570,43 @@ function changeBarsLocation(location) {
             healthBarYOffSet = height - 0.85 * cellSize
             break;
     }
+}
+
+function drawWinScreen() {
+    background(50)
+
+    for(let i = 0; i < tempPlayers.length; i++){
+        let j = tempPlayers[i]
+        noFill()
+        stroke("red")
+        strokeWeight(playerSpacing / 2)
+        square(i * width/4 + playerSpacing, height * 0.25 - width/8 + playerSpacing, width/4 - playerSpacing * 2)
+    
+        strokeWeight(cellSize * 0.01)
+        stroke("black")
+        fill("black")
+        textSize(cellSize * 0.3)
+        textAlign(CENTER,CENTER)
+        text(j.userName, i * width/4 + width/8, height * 0.25)
+        
+        strokeWeight(0)
+        fill("red")
+        rect(i * width/4 + playerSpacing, height * 0.4, (width/4 - playerSpacing * 2) * (j.healthDisplay /100), cellSize * 0.2)
+
+        strokeWeight(0.01 * cellSize)
+        noFill()
+        rect(i * width/4 + playerSpacing, height * 0.4, width/4 - playerSpacing * 2, cellSize * 0.2)
+
+        if(j.healthDisplay > j.health){
+            j.healthDisplay -= 0.5
+        }
+        if(j.healthDisplay <= 0){
+
+        }
+    }
+}
+
+function leaveWinScreen() {
+    winScreen = false
+    refreshLobbies()
 }
