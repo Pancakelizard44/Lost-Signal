@@ -17,6 +17,8 @@ let healthBarYOffSet
 let playerSpacing
 let winScreen = false
 let tempPlayers
+let winArea
+
 
 let playerID = localStorage.getItem("playerID")
 let userName = localStorage.getItem("userName")
@@ -169,11 +171,12 @@ function serverConnection(){
                 lobby = thisLobby
                 refreshLobby()
             })
-            socket.on("gameSessionUpdate", (mapData,playerData,itemData,leverData) => {
+            socket.on("gameSessionUpdate", (mapData,playerData,itemData,leverData,winAreaData) => {
                 players = playerData
                 thisMap = mapData
                 items = itemData
                 levers = leverData
+                winArea = winAreaData
             })
             socket.on("gameSessionRefresh", () => {
                 refreshSession()
@@ -198,6 +201,7 @@ function serverConnection(){
                 winScreen = true
 
                 buttons.push(new myButton(0, 0.75 * height, width, cellSize, "Leave", [255,0,0] ,cellSize,LEFT, leaveWinScreen))
+                texts.push(new textBox(width / 2, height * 0.6, height * 0.1,CENTER,[255,0,0],"You Won"))
             })
 
             localStorage.setItem("inSession", false)
@@ -216,11 +220,12 @@ function myAlert(m){
 
 document.addEventListener("keydown", (a) => {
     if(players[playerID]){
-        if(a.key === "m"){
+        if(a.key === "m" && players[playerID].group === "gameSession"){
             menu()
         } else if(a.keyCode >= 32 || a.keyCode === 16){
             socket.emit("keyDown", a.keyCode)
         } 
+
     } else {
         if(a.keyCode >= 32){
             if(userName){
@@ -386,6 +391,7 @@ function drawGameSession(){
     background(50)
 
     if(players[playerID]){
+        console.log(players[playerID].pos[0], players[playerID].pos[1])
         thisPlayer = players[playerID]
         camX = thisPlayer.pos[0] * cellSize
         camY = thisPlayer.pos[1] * cellSize
@@ -438,9 +444,22 @@ function drawWorld() {
                 console.log("ERROR the map is not loading properly")
                 break;
             }
+            if(i >= winArea[0]
+            && i < winArea[1]
+            && j >= winArea[2]
+            && j < winArea[3]
+            ) {
+                fill(80)
+            }
             square(i*cellSize,j*cellSize,cellSize * 1.01)
         }
     }  
+
+    textSize(cellSize * 0.6)
+    fill("black")
+    textAlign(CENTER)
+    text("Drop items here", (winArea[0] + (winArea[1] - winArea[0]) * 0.5) * cellSize, (winArea[2] + (winArea[3] - winArea[2]) * 0.5) * cellSize)
+
     drawItems() 
     drawPlayers()
 }
@@ -486,6 +505,29 @@ function drawHud() {
     strokeWeight(0.01 * cellSize)
     rect(healthBarXOffSet, healthBarYOffSet , 2 * cellSize, 0.25 * cellSize)
     rect(healthBarXOffSet, healthBarYOffSet + 0.5 * cellSize , 2 * cellSize, 0.25 * cellSize)
+
+    //objectives
+    let itemsCollected = 0
+    for(let i = 0; i < items.length; i++ ) {
+        let target = items[i]
+        if(target.pos[0] > winArea[0]
+        && target.pos[0] < winArea[1]
+        && target.pos[1] > winArea[2]
+        && target.pos[1] < winArea[3]) {
+            itemsCollected ++
+        }
+    }
+    let leversActivated = 0
+    for(let i = 0; i < levers.length; i++ ) {
+        if(levers[i].activated) {
+            leversActivated ++
+        }
+    }
+    textSize(cellSize * 0.2)
+    fill("black")
+    strokeWeight(0)
+    text("Parts collected: " + itemsCollected + "/" + items.length, width/2, cellSize * 0.2)
+    text("Levers activated: " + leversActivated + "/" + levers.length, width/2, cellSize * 0.4)
 }
 
 function refreshSession() {
@@ -591,11 +633,11 @@ function drawWinScreen() {
         
         strokeWeight(0)
         fill("red")
-        rect(i * width/4 + playerSpacing, height * 0.4, (width/4 - playerSpacing * 2) * (j.healthDisplay /100), cellSize * 0.2)
+        rect(i * width/4 + playerSpacing, height * 0.5, (width/4 - playerSpacing * 2) * (j.healthDisplay /100), cellSize * 0.2)
 
         strokeWeight(0.01 * cellSize)
         noFill()
-        rect(i * width/4 + playerSpacing, height * 0.4, width/4 - playerSpacing * 2, cellSize * 0.2)
+        rect(i * width/4 + playerSpacing, height * 0.5, width/4 - playerSpacing * 2, cellSize * 0.2)
 
         if(j.healthDisplay > j.health){
             j.healthDisplay -= 0.5
