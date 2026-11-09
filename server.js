@@ -126,7 +126,7 @@ function isWall(x,y,inputMap){
 }
 
 class item {
-    constructor(arr, type){
+    constructor(arr, type, sessionID){
         // arr = [Xmax, Xmin, Ymax, Ymin]
         this.pos = []
         this.pos[0] = arr[0] + Math.random() * (arr[1] - arr[0])
@@ -134,7 +134,9 @@ class item {
         this.type = type
         this.visible = true
         this.owner = 0 //playerID of the player who has the item 0 if no one is holding it
+        this.sessionID = sessionID
     }
+
 
     pickUp(ID){
         this.visible = false
@@ -147,6 +149,13 @@ class item {
         this.visible = true
         this.owner = 0
         debug("dropped")
+        if(this.pos[0] > winAreas[sessions[this.sessionID].mapNumber][0]
+        && this.pos[0] < winAreas[sessions[this.sessionID].mapNumber][1]
+        && this.pos[1] > winAreas[sessions[this.sessionID].mapNumber][2]
+        && this.pos[1] < winAreas[sessions[this.sessionID].mapNumber][3]
+        ) {
+            this.visible = false
+        }
     }
 }
 
@@ -211,7 +220,7 @@ class lobby {
 
 class gameSession {
     constructor(lobby){
-        this.mapNumber = 0
+        this.mapNumber = 1
         this.players = lobby.priority
         this.id = lobby.id
         delete lobbies[this.id]
@@ -243,16 +252,21 @@ class gameSession {
         if(this.players.length === 0){
             clearInterval(this.loop)
             delete sessions[this.id]
-            console.log("test")
         }
         preLobbyUpdate()
     }
 
     createItems() {
-        this.levers.push(new lever(leverSpawns[this.mapNumber][0]))
-        this.levers.push(new lever(leverSpawns[this.mapNumber][1]))
+        for(let i = 0; i < leverSpawns[this.mapNumber].length; i++){
+            this.levers.push(new lever(leverSpawns[this.mapNumber][i]))
+        }
         
-        this.items.push(new item(itemSpawns[this.mapNumber][0], 0))
+        for(let i = 0; i < itemSpawns[this.mapNumber].length - 2; i++){
+            //this.items.push(new item(itemSpawns[this.mapNumber][Math.round(Math.random() * itemSpawns[this.mapNumber].length)],0,this.id))
+            this.items.push(new item(itemSpawns[this.mapNumber][i],0,this.id))
+        }
+
+        console.log(this.items, this.levers)
 
         this.winArea = winAreas[this.mapNumber]
     }
@@ -306,6 +320,7 @@ class gameSession {
             preLobbyUpdate()
         }
         debug("WIn")
+        delete sessions[this.id]
     }
 }
 
@@ -314,8 +329,8 @@ let offlinePlayers = {}
 let lobbies = {}
 let sessions = {}
 let myTimeout = false
-playerSprintV = 1/10
-playerWalkV = 1/20
+playerSprintV = 1 //change to 1/10 when done testing
+playerWalkV = 1/20 
 
 //server communication with client
 io.on("connection", (socket) => {
@@ -402,6 +417,11 @@ io.on("connection", (socket) => {
                     if(players[playerID].stamina > 0)
                     players[playerID].v = playerSprintV
                     players[playerID].staminaIncreasing = false
+                    if(players[playerID].staminaTimeOut){
+                        clearTimeout(players[playerID].staminaTimeOut)
+                        players[playerID].staminaTimeOut = false
+                    }
+                    
                     break;
                 case 32:
                     players[playerID].interact()
@@ -516,9 +536,9 @@ function gameSessionUpdate(i) {
         k.staminaCheck()
         k.pos[0] += k.move[0] * k.v
         k.pos[1] += k.move[1] * k.v
-        if(k.v === playerSprintV){k.stamina -= 0.5}
+        if(k.v === playerSprintV && (k.vect[0] !== 0 || k.vect[1] !== 0)){k.stamina -= 0.5}
 
-        io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit, sessions[i].items, sessions[i].levers)
+        io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit, sessions[i].items, sessions[i].levers, sessions[i].winArea)
     }
 
     }
@@ -543,7 +563,7 @@ server.listen(PORT, () => {
 //map generation
 let mapPresets = [
     //0-10 coridoors
-    // 0 = crossroads
+    //0 = crossroads
     //1-4 = t junction variations
     //1-down 2-left 3-up 4-right
     //5-8 = L junction variation
@@ -828,14 +848,33 @@ spawns[0] = [4.5,13.5]
 spawns[1] = [4.5, 6.5 * 9]
 
 //[Xmin,Xmax, Ymin,Ymax]
-let itemSpawns = [[]]
+let itemSpawns = [[],[]]
 itemSpawns[0][0] = [9 * 1.4, 9 * 1.6, 9 * 1.4, 9 * 1.6]
+itemSpawns[0][1] = [9 * 2.4, 9 * 2.6, 9 * 1.4, 9 * 1.6]
+itemSpawns[0][2] = [9 * 2.4, 9 * 2.6, 9 * 1.4, 9 * 1.6]
+itemSpawns[1][0] = [12.5, 14.5, 75.5, 77.5]
+itemSpawns[1][1] = [12.5, 14.5, 93.5, 95.5]
+itemSpawns[1][2] = [57.5, 59.5, 21.5, 23.5]
+itemSpawns[1][3] = [42.5, 44.5, 12.5, 15.5]
+itemSpawns[1][4] = [28.5, 34.5, 37.5, 43.5]
+itemSpawns[1][5] = [28.5, 34.5, 37.5, 43.5]
+itemSpawns[1][6] = [12.5, 14.5, 30.5, 32.5]
+itemSpawns[1][7] = [12.5, 14.5, 39.5, 41.5]
+itemSpawns[1][8] = [21.5, 23.5, 66.5, 68.5]
 
 //[x,y]
-let leverSpawns = [[]]
+let leverSpawns = [[],[]]
 leverSpawns[0][0] = [1.5 * 9, 3.5]
 leverSpawns[0][1] = [1.5 * 9, 17.5]
+leverSpawns[1][0] = [13.5, 48.5]
+leverSpawns[1][1] = [26.5, 76.5]
+leverSpawns[1][2] = [41.5, 94.5]
+leverSpawns[1][3] = [67.5, 85.5]
+leverSpawns[1][4] = [67.5, 58.5]
+leverSpawns[1][5] = [62.5, 49.5]
+leverSpawns[1][6] = [3.5, 13.5]
 
 //[Xmin,Xmax, Ymin,Ymax]
 let winAreas = []
 winAreas[0] = [1, 8, 9+1, 9+4]
+winAreas[1] = [1, 8, 9 * 6 + 1, 9 * 6 + 4]
