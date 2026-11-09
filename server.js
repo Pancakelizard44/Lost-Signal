@@ -329,7 +329,7 @@ let offlinePlayers = {}
 let lobbies = {}
 let sessions = {}
 let myTimeout = false
-playerSprintV = 1 //change to 1/10 when done testing
+playerSprintV = 1/10
 playerWalkV = 1/20 
 
 //server communication with client
