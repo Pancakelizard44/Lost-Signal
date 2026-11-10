@@ -332,7 +332,7 @@ function refreshLobbies(){
     for(let id in lobbies){
         let i = lobbies[id]
         if(j + 1.5 >= mapSize){ k++; j = 0}
-        if(i.priority.length <= 10){ //change to 4 
+        if(i.priority.length <= 4){ 
             let lobbyText = "> " + players[i.priority[0]].userName + "'s lobby | players: " + i.priority.length + "/4"
 
             buttons.push(new myButton((k * 6) *cellSize, (j + 1.5) * cellSize, 5 * cellSize, 0.8 * cellSize, lobbyText , [255,0,0], cellSize * 0.3 ,LEFT, joinLobby, id))
