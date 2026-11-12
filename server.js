@@ -20,12 +20,14 @@ class player {
         this.v = playerWalkV
         this.move = [0,0]
         this.hitBox = 1 //this is ths length of the square which the player collition acts
-        this.stamina = 100
-        this.staminaIncreasing = false
-        this.staminaTimeOut = false
+        this.stamina = 100              //value for the players stamina which will be increased/decreased
+        this.staminaIncreasing = false  //boolean value for if the stamina should increase
+        this.staminaTimeOut = false     //Will be reasigned to a timout but to prevent multiple instanses 
+                                        // it is set to false 
         this.health = 100
         this.detectRange = 5
         this.holding = false
+        this.facing
     }
 
     checkTarget() {
@@ -63,16 +65,20 @@ class player {
 
     staminaCheck() {
         if(this.stamina <= 0) {
+            // sets the player to walking velocity
             this.v = playerWalkV
         }
         if(this.v === playerWalkV && !this.staminaIncreasing && !this.staminaTimeOut) {
+            //stamina timout is set to false up to this point so multiple instanses of the timeout occur
             this.staminaTimeOut = setTimeout(() => {
                 this.staminaIncreasing = true
                 this.staminaTimeOut = false
+                //after the timout stamina timout is set to fasle so now the timout can start again
             }, 500)
         }
         
         if(this.staminaIncreasing && this.stamina < 100){
+            //increases the stamina if the stamina is < 100 & stamina is meant to be increasing
             this.stamina += 1
         }
     }
@@ -81,23 +87,29 @@ class player {
         let target
 
         for(let i = 0; i < sessions[this.sessionID].levers.length; i++){
+            //lever check
             target = sessions[this.sessionID].levers[i]
 
             if(this.pos[0] < target.pos[0] + 1
-                && this.pos[0] > target.pos[0] - 1
-                && this.pos[1] < target.pos[1] + 1 
-                && this.pos[1] > target.pos[1] - 1){
+            && this.pos[0] > target.pos[0] - 1
+            && this.pos[1] < target.pos[1] + 1 
+            && this.pos[1] > target.pos[1] - 1){
 
                 target.activate()
                 break
-            } 
-
+            }
+            
+            //item check
             if(i === sessions[this.sessionID].levers.length - 1){
                 if(this.holding !== false){
+                    //checks if the player is already holding an item
+                    //drops it if they do
                     sessions[this.sessionID].items[this.holding].drop()
                     this.holding = false
                 } else 
                 for(let j = 0; j < sessions[this.sessionID].items.length; j++){
+                    //checks all items within the session to see if they are within range of the player
+
                     target = sessions[this.sessionID].items[j]
             
                     if( target.visible
@@ -118,6 +130,94 @@ class player {
     }
     
 }
+
+class enemy {
+    constructor(pos, v, range, Arange, ID) {
+        this.x = pos[0]
+        this.y = pos[1]
+        this.v = v
+        this.xv = 0
+        this.yv = 0
+        this.range = range
+        this.attackRange = Arange
+        this.sessionID = ID
+    }
+
+    updateEnemy() {
+        let distance = this.range
+        let dx
+        let dy
+
+        for(let i = 0; i < sessions[this.sessionID].players.length ; i++) {
+            let j = players[sessions[this.sessionID].players[i]]
+
+            let distance2 = absDistance(this.x, this.y, j.pos[0], j.pos[1])
+
+            if(distance2 < this.attackRange){
+                this.damage(j.playerID)
+                break;
+            } else if (distance2 < distance) {
+                distance = distance2
+                dx = this.x - j.pos[0]
+                dy = this.y - j.pos[1]
+            }
+        }
+        if(distance < this.range) {
+            this.attack(dx,dy,distance)
+            console.log("there is a problem with the attack fucntoin", dx, dy)
+        } else {
+            this.roam()
+        }
+
+        this.x += this.xv
+        this.y += this.yv
+    }
+
+    attack(dx,dy,d){
+        let moveX = dx * (this.v / d)
+
+        let moveY = dy * (this.v / d)
+        
+
+        if((isWall(this.x,this.y + 0.55, sessions[this.sessionID].map) && this.yv >= 0) 
+        || (isWall(this.x, this.y - 0.55, sessions[this.sessionID].map) && this.yv <= 0)){
+            if(moveX > 0){
+                this.xv = this.v * -1
+                this.yv = 0
+            } else {
+                this.xv = this.v
+                this.yv = 0
+            }
+        } else if((isWall(this.x + 1,this.y, sessions[this.sessionID].map) && this.xv >= 0) || (isWall(this.x - 1, this.y, sessions[this.sessionID].map) && this.xv <= 0)){
+            if(moveY > 0) {
+                this.yv = this.v * -1
+                this.xv = 0
+            } else {
+                this.yv = this.v
+                this.xv = 0
+            }
+        } else {
+        this.xv = moveX * -1
+        this.yv = moveY * -1
+        }
+    }
+
+    damage(ID) {
+        // console.log(ID, "is being damaged")
+    }
+
+    roam() {
+        this.xv = 0
+        this.yv = 0
+        // if(this.xv > 0 && isWall(this.x + )) {
+
+        // }
+    }
+}
+
+function absDistance(x1,y1,x2,y2) {
+    return Math.sqrt((x1-x2) ** 2 + (y1-y2) ** 2)
+} 
 function isWall(x,y,inputMap){
     x = Math.floor(x)
     y = Math.floor(y)
@@ -132,18 +232,21 @@ class item {
         this.pos[0] = arr[0] + Math.random() * (arr[1] - arr[0])
         this.pos[1] = arr[2] + Math.random() * (arr[3] - arr[2])
         this.type = type
-        this.visible = true
+        this.visible = true //determines if the players can see it
         this.owner = 0 //playerID of the player who has the item 0 if no one is holding it
         this.sessionID = sessionID
     }
 
 
     pickUp(ID){
+        //this just makes the item invisible and assigns the owner
         this.visible = false
         this.owner = ID
         debug("picked up")
     }
     drop(){
+        //when this is called it will change the poistion of the item to the owners position
+        //then will change the visibility to being true
         this.pos[0] = players[this.owner].pos[0]
         this.pos[1] = players[this.owner].pos[1]
         this.visible = true
@@ -235,8 +338,9 @@ class gameSession {
         this.loop = setInterval(gameSessionUpdate,16,this.id)
         this.items = []
         this.levers = []
+        this.enemies = []
         this.winArea  //[Xmin,Xmax, Ymin,Ymax]
-        this.createItems()
+        this.createEntities()
         this.win = false
     }
 
@@ -256,31 +360,37 @@ class gameSession {
         preLobbyUpdate()
     }
 
-    createItems() {
+    createEntities() {
+        //creates a lever for every lever spawn in the map and assigns it to the levers array of the session
         for(let i = 0; i < leverSpawns[this.mapNumber].length; i++){
             this.levers.push(new lever(leverSpawns[this.mapNumber][i]))
         }
         
+        //creates an item for every item spawn in the map and assigns it to the items array of the session
         for(let i = 0; i < itemSpawns[this.mapNumber].length - 2; i++){
-            //this.items.push(new item(itemSpawns[this.mapNumber][Math.round(Math.random() * itemSpawns[this.mapNumber].length)],0,this.id))
             this.items.push(new item(itemSpawns[this.mapNumber][i],0,this.id))
         }
 
-        console.log(this.items, this.levers)
-
         this.winArea = winAreas[this.mapNumber]
+
+        for(let i = 0; i < enemySpawns[this.mapNumber].length; i ++) {
+            this.enemies.push(new enemy(enemySpawns[this.mapNumber][i], 1/15, 5, 1, this.id))
+        }
     }
 
     winCheck() {
-        if(!this.win)
+        if(!this.win) //this stops the win scteen from being activated more than once
         this.win = true
         for(let i = 0; i < this.levers.length; i ++) {
             if(!this.levers[i].activated){
+                //checks if any of the levers are not activated
                 this.win = false
                 break;
             }
         }
+        if(this.win)
         for(let i = 0; i < this.items.length; i ++) {
+            //checks if any items are outside the win area
             let target = this.items[i]
             if(target.pos[0] < this.winArea[0]
             || target.pos[0] > this.winArea[1]
@@ -423,7 +533,7 @@ io.on("connection", (socket) => {
                     }
                     
                     break;
-                case 32:
+                case 32 || 69:
                     players[playerID].interact()
                     break;
             }
@@ -459,6 +569,13 @@ io.on("connection", (socket) => {
             
         }
     })
+    socket.on("mouseLocation", (Xdata, Ydata, w, h) => {
+        players[playerID].facing =  Math.atan((Ydata - h/2) / (Xdata  - w/2))
+        if(Xdata < w/2){
+            players[playerID].facing += Math.PI
+        }
+    })
+
     socket.on("leaveSession", () => {
         sessions[players[playerID].sessionID].leave(playerID)
     })
@@ -519,14 +636,24 @@ function gameSessionUpdate(i) {
         b = players[sessions[i].players[a]]
         playersToEmit[b.playerID] = {
             playerID: b.playerID,
-            socketID: b.socketID,
             group: b.group,
-            sessionID: b.sessionID,
             pos: b.pos,
             vect: b.vect,
             health: b.health,
             stamina: b.stamina,
-            userName: b.userName
+            userName: b.userName,
+            facing: b.facing
+        }
+    }
+
+    let enemiesToEmit = []
+
+    for(let a = 0; a < sessions[i].enemies.length; a++){
+        b = sessions[i].enemies[a]
+        b.updateEnemy()
+        enemiesToEmit[a] = {
+            x: b.x,
+            y: b.y
         }
     }
 
@@ -538,7 +665,13 @@ function gameSessionUpdate(i) {
         k.pos[1] += k.move[1] * k.v
         if(k.v === playerSprintV && (k.vect[0] !== 0 || k.vect[1] !== 0)){k.stamina -= 0.5}
 
-        io.to(k.socketID).emit("gameSessionUpdate", sessions[i].map, playersToEmit, sessions[i].items, sessions[i].levers, sessions[i].winArea)
+        io.to(k.socketID).emit("gameSessionUpdate", 
+            sessions[i].map, 
+            playersToEmit, 
+            sessions[i].items, 
+            sessions[i].levers, 
+            sessions[i].winArea, 
+            enemiesToEmit)
     }
 
     }
@@ -878,3 +1011,7 @@ leverSpawns[1][6] = [3.5, 13.5]
 let winAreas = []
 winAreas[0] = [1, 8, 9+1, 9+4]
 winAreas[1] = [1, 8, 9 * 6 + 1, 9 * 6 + 3]
+
+//[x,y]
+let enemySpawns = [[],[]]
+enemySpawns[1][0] = [18, 9 * 6.5]
