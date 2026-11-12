@@ -18,7 +18,7 @@ let playerSpacing
 let winScreen = false
 let tempPlayers
 let winArea
-let ligths //2nd canvas for lights
+let lights //2nd canvas for lights
 
 
 let playerID = localStorage.getItem("playerID")
