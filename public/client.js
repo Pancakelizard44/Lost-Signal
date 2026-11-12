@@ -18,6 +18,7 @@ let playerSpacing
 let winScreen = false
 let tempPlayers
 let winArea
+let ligths //2nd canvas for lights
 
 
 let playerID = localStorage.getItem("playerID")
@@ -115,6 +116,10 @@ async function setup() {
     healthBarXOffSet = 0.1 * cellSize
     healthBarYOffSet = 0.1 * cellSize
     playerSpacing = width/20
+    
+    lights = createGraphics(width,height)
+
+    angleMode(DEGREES)
 
     let inSession = localStorage.getItem("inSession")
 
@@ -171,12 +176,13 @@ function serverConnection(){
                 lobby = thisLobby
                 refreshLobby()
             })
-            socket.on("gameSessionUpdate", (mapData,playerData,itemData,leverData,winAreaData) => {
+            socket.on("gameSessionUpdate", (mapData,playerData,itemData,leverData,winAreaData, enemyData) => {
                 players = playerData
                 thisMap = mapData
                 items = itemData
                 levers = leverData
                 winArea = winAreaData
+                enemies = enemyData
             })
             socket.on("gameSessionRefresh", () => {
                 refreshSession()
@@ -332,7 +338,7 @@ function refreshLobbies(){
     for(let id in lobbies){
         let i = lobbies[id]
         if(j + 1.5 >= mapSize){ k++; j = 0}
-        if(i.priority.length <= 4){ 
+        if(i.priority.length <= 4){
             let lobbyText = "> " + players[i.priority[0]].userName + "'s lobby | players: " + i.priority.length + "/4"
 
             buttons.push(new myButton((k * 6) *cellSize, (j + 1.5) * cellSize, 5 * cellSize, 0.8 * cellSize, lobbyText , [255,0,0], cellSize * 0.3 ,LEFT, joinLobby, id))
@@ -386,32 +392,54 @@ function kick(id){
     socket.emit("kickPlayer", id)
 }
 
-
-function drawGameSession(){
+function drawGameSession(){   
     background(50)
 
+    facing =  Math.atan((mouseY - height/2) / (mouseX  - width/2))
+    if(mouseX < width/2){
+        facing = facing + Math.PI
+    }
+    lights.noErase()
+    lights.clear()
+    lights.background(0,0,0,230)
+    lights.erase()
+
     if(players[playerID]){
-        console.log(players[playerID].pos[0], players[playerID].pos[1])
         thisPlayer = players[playerID]
         camX = thisPlayer.pos[0] * cellSize
         camY = thisPlayer.pos[1] * cellSize
-        
 
         push()
+        lights.push()
         translate(width/2 - camX, height/2 - camY)
+        lights.translate(width/2 - camX, height/2 - camY)
         if(thisMap){
             drawWorld()
         }
         pop()
+        lights.pop()
 
+        lights.arc(width/2, height/2, lights.width, lights.width, players[playerID].facing - 0.6, players[playerID].facing + 0.6)
+        image(lights, 0, 0) //draws the flashlight canvas on
+
+        fill("red") 
+        textAlign(CENTER,CENTER)
+        textSize(cellSize * 0.2)
+        strokeWeight(cellSize * 0.01)
+        textSize()
+        i = players[playerID]
+        text(i.userName, width/2, height/2 - 0.75 * cellSize )
         fill("blue")
         circle(width/2,height/2,cellSize)
+
         drawHud()
     }
     if(menuUp){
         fill(0,0,0,100)
         rect(0,0,width,height)
     }
+
+    socket.emit("mouseLocation", mouseX, mouseY , width, height)
 }
 function drawWorld() {
     strokeWeight(0)
@@ -461,6 +489,7 @@ function drawWorld() {
     text("Drop items here", (winArea[0] + (winArea[1] - winArea[0]) * 0.5) * cellSize, (winArea[2] + (winArea[3] - winArea[2]) * 0.5) * cellSize)
 
     drawItems() 
+    drawEnemies()
     drawPlayers()
 }
 function drawItems() {
@@ -482,16 +511,30 @@ function drawItems() {
         square((levers[i].pos[0] - 0.25) * cellSize , (levers[i].pos[1] - 0.25) * cellSize, cellSize * 0.5)
     }
 }
+function drawEnemies() {
+    strokeWeight(cellSize * 0.01)
+    fill("red")
+
+    for(let i = 0; i < enemies.length; i++) {
+        j = enemies[i]
+        circle(j.x * cellSize, j.y * cellSize, cellSize)
+    }
+}
 function drawPlayers() {
     textAlign(CENTER,CENTER)
     textSize(cellSize * 0.2)
     strokeWeight(cellSize * 0.01)
     
-    fill("red")
+    fill("green")
     for(let id in players) {
-        let i = players[id]
-        circle(i.pos[0] * cellSize ,i.pos[1] * cellSize,cellSize)
-        text(i.userName, i.pos[0] * cellSize,(i.pos[1] - 0.75) * cellSize )
+        if(id !== playerID){
+            let i = players[id]
+
+            lights.arc(i.pos[0] * cellSize, i.pos[1] * cellSize, lights.width, lights.width, i.facing - 0.6, i.facing + 0.6)
+            lights.circle(i.pos[0] * cellSize ,i.pos[1] * cellSize,cellSize)
+            circle(i.pos[0] * cellSize ,i.pos[1] * cellSize,cellSize)
+            text(i.userName, i.pos[0] * cellSize,(i.pos[1] - 0.75) * cellSize )
+        }
     }
 }
 function drawHud() {
@@ -524,7 +567,8 @@ function drawHud() {
         }
     }
     textSize(cellSize * 0.2)
-    fill("black")
+    textAlign(CENTER)
+    fill("red")
     strokeWeight(0)
     text("Parts collected: " + itemsCollected + "/" + items.length, width/2, cellSize * 0.2)
     text("Levers activated: " + leversActivated + "/" + levers.length, width/2, cellSize * 0.4)
