@@ -128,7 +128,17 @@ class player {
         
         sessions[this.sessionID].winCheck()
     }
-    
+
+    takeDamage(dmg) {
+        this.health -= dmg
+        this.deathCheck()
+    }
+
+    deathCheck () {
+        if(this.group === "gameSession" && this.health <= 0) {
+            sessions[this.sessionID].leave(this.playerID)
+        }
+    }  
 }
 
 class enemy {
@@ -136,11 +146,17 @@ class enemy {
         this.x = pos[0]
         this.y = pos[1]
         this.v = v
+        this.walkV = v * 0.8
         this.xv = 0
         this.yv = 0
         this.range = range
         this.attackRange = Arange
         this.sessionID = ID
+        this.hitBox = 1
+        this.attackDamage = 19
+        this.attackTimeOut = false
+        this.attacking 
+        this.move = true
     }
 
     updateEnemy() {
@@ -155,8 +171,16 @@ class enemy {
 
             if(distance2 < this.attackRange){
                 this.damage(j.playerID)
+                this.attacking = j.playerID
+            } else if (this.attacking === j.playerID) {
+                this.stopDamage()
+            }
+
+            if(distance2 < this.attackRange * 0.5){
                 break;
-            } else if (distance2 < distance) {
+            }
+           
+            if (distance2 < distance) {
                 distance = distance2
                 dx = this.x - j.pos[0]
                 dy = this.y - j.pos[1]
@@ -164,54 +188,141 @@ class enemy {
         }
         if(distance < this.range) {
             this.attack(dx,dy,distance)
-            console.log("there is a problem with the attack fucntoin", dx, dy)
         } else {
             this.roam()
         }
 
-        this.x += this.xv
-        this.y += this.yv
+        if(this.move){
+            this.x += this.xv
+            this.y += this.yv
+        }
     }
 
-    attack(dx,dy,d){
+    attack(dx,dy,d) {
+        this.move = true
+        let m = sessions[this.sessionID].map
+
         let moveX = dx * (this.v / d)
-
         let moveY = dy * (this.v / d)
-        
 
-        if((isWall(this.x,this.y + 0.55, sessions[this.sessionID].map) && this.yv >= 0) 
-        || (isWall(this.x, this.y - 0.55, sessions[this.sessionID].map) && this.yv <= 0)){
-            if(moveX > 0){
-                this.xv = this.v * -1
-                this.yv = 0
-            } else {
-                this.xv = this.v
-                this.yv = 0
-            }
-        } else if((isWall(this.x + 1,this.y, sessions[this.sessionID].map) && this.xv >= 0) || (isWall(this.x - 1, this.y, sessions[this.sessionID].map) && this.xv <= 0)){
-            if(moveY > 0) {
-                this.yv = this.v * -1
-                this.xv = 0
-            } else {
-                this.yv = this.v
-                this.xv = 0
-            }
-        } else {
         this.xv = moveX * -1
         this.yv = moveY * -1
+
+        if(this.xv > 0 
+        && (isWall(this.x + this.hitBox * 0.5 + 0.05, this.y + this.hitBox * 0.5, m) 
+        || isWall(this.x + this.hitBox * 0.5 + 0.05, this.y - this.hitBox * 0.5, m))) {
+            this.xv = 0
+
+        } else if(this.xv < 0 
+        && (isWall(this.x - this.hitBox * 0.5 - 0.05, this.y + this.hitBox * 0.5, m) 
+        || isWall(this.x - this.hitBox * 0.5 - 0.05, this.y - this.hitBox * 0.5, m))) {
+            this.xv = 0
+        }
+
+        if(this.yv > 0 
+        && (isWall(this.x + this.hitBox * 0.5, this.y + this.hitBox * 0.5 + 0.05, m) 
+        || isWall(this.x - this.hitBox * 0.5, this.y + this.hitBox * 0.5 + 0.05, m))) {
+            this.yv = 0
+
+        } else if(this.yv < 0 
+        && (isWall(this.x + this.hitBox * 0.5, this.y - this.hitBox * 0.5 - 0.05, m) 
+        || isWall(this.x - this.hitBox * 0.5, this.y - this.hitBox * 0.5 - 0.05, m))) {
+            this.yv = 0
+        }  
+
+        if(this.xv === 0) {
+            if(this.yv > 0) {
+                this.yv = this.v
+            } else if (this.yv < 0){
+                this.yv = this.v * -1
+            }
+        }
+        if(this.yv === 0) {
+            if(this.xv > 0) {
+                this.xv = this.v
+            } else if (this.xv < 0){
+                this.xv = this.v * -1
+            }
         }
     }
 
     damage(ID) {
-        // console.log(ID, "is being damaged")
+        if(!this.attackTimeOut){
+            this.attackTimeOut = setInterval(() => {players[ID].takeDamage(this.attackDamage)}, 1000)
+        }
+    }
+
+    stopDamage() {
+        if(this.attackTimeOut) {
+            setTimeout( () => {
+                clearInterval(this.attackTimeOut)
+                this.attackTimeOut = false
+            }, 500)
+        }
     }
 
     roam() {
-        this.xv = 0
-        this.yv = 0
-        // if(this.xv > 0 && isWall(this.x + )) {
+        if(Math.abs(this.xv) >= Math.abs(this.yv)){
+            this.yv = 0
+            if(this.xv > 0){
+                this.xv = this.v
+            } else {
+                this.xv = this.v * -1
+            }
+        } else {
+            this.xv = 0
+            if(this.yv > 0){
+                this.yv = this.v
+            } else {
+                this.yv = this.v * -1
+            }
+        }
 
-        // }
+        let m = sessions[this.sessionID].map
+
+        if(this.xv > 0 
+        && (isWall(this.x + this.hitBox * 0.5 + 1.05, this.y + this.hitBox * 0.5, m) 
+        || isWall(this.x + this.hitBox * 0.5 + 1.05, this.y - this.hitBox * 0.5, m))) {
+            this.xv = 0
+            this.choseRandomDirection()
+        } else if(this.xv < 0 
+        && (isWall(this.x - this.hitBox * 0.5 - 1.05, this.y + this.hitBox * 0.5, m) 
+        || isWall(this.x - this.hitBox * 0.5 - 1.05, this.y - this.hitBox * 0.5, m))) {
+            this.xv = 0
+            this.choseRandomDirection()
+        }else if(this.yv > 0 
+        && (isWall(this.x + this.hitBox * 0.5, this.y + this.hitBox * 0.5 + 1.05, m) 
+        || isWall(this.x - this.hitBox * 0.5, this.y + this.hitBox * 0.5 + 1.05, m))) {
+            this.yv = 0
+            this.choseRandomDirection()
+        } else if(this.yv < 0 
+        && (isWall(this.x + this.hitBox * 0.5, this.y - this.hitBox * 0.5 - 1.05, m) 
+        || isWall(this.x - this.hitBox * 0.5, this.y - this.hitBox * 0.5 - 1.05, m))) {
+            this.yv = 0
+            this.choseRandomDirection()
+        } else {
+            this.move = true
+        }  
+    }
+
+    choseRandomDirection() {
+        this.move = false
+        let randomDirection = Math.round(Math.random() * 3)
+
+        switch(randomDirection){
+            case 0:
+                this.xv = this.v
+                break;
+            case 1:
+                this.xv = this.v * -1
+                break;
+            case 2:
+                this.yv = this.v
+                break;
+            case 3:
+                this.yv = this.v * -1
+                break;
+        }
     }
 }
 
@@ -352,12 +463,23 @@ class gameSession {
         }
         players[ID].sessionID = 0
         players[ID].group = "preLobby"
+        players[ID].health = 100
 
         if(this.players.length === 0){
-            clearInterval(this.loop)
-            delete sessions[this.id]
+            this.endSession()
         }
         preLobbyUpdate()
+    }
+
+    endSession() {
+        clearInterval(this.loop)
+        for(let i = 0; i < this.enemies.length; i++) {
+            let j = this.enemies[i]
+            if(j.attackTimeOut) {
+                clearInterval(j.attackTimeOut)
+            }
+        }
+        delete sessions[this.id]
     }
 
     createEntities() {
@@ -420,8 +542,10 @@ class gameSession {
                 userName: b.userName
             }
         }
+        //creates copy of players
 
         clearInterval(this.loop)
+        //stops the game session loop
 
         for(let j = 0; j < this.players.length; j++){
             let k = players[this.players[j]]
@@ -431,6 +555,7 @@ class gameSession {
         }
         debug("WIn")
         delete sessions[this.id]
+        //deletes the session
     }
 }
 
@@ -1014,4 +1139,5 @@ winAreas[1] = [1, 8, 9 * 6 + 1, 9 * 6 + 3]
 
 //[x,y]
 let enemySpawns = [[],[]]
-enemySpawns[1][0] = [18, 9 * 6.5]
+enemySpawns[1][0] = [22.5, 67.5]
+enemySpawns[1][1] = [43.5, 13.5]
