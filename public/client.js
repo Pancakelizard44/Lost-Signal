@@ -262,7 +262,6 @@ function mouseClicked() {
 function draw(){
     if(winScreen){
         drawWinScreen() 
-        console.log("test")
     } else if(players[playerID]){
         switch(players[playerID].group){
             case "preLobby":
